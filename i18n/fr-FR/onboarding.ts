@@ -33,6 +33,11 @@ export const onboarding = {
   'onboarding.proposeRules.submit': "C'est prêt",
   'onboarding.proposeRules.error': 'Une erreur est survenue, réessaie.',
   'onboarding.proposeRules.cancel': 'Annuler',
+  'onboarding.proposeRewards.title': 'Son menu de récompenses',
+  'onboarding.proposeRewards.dailyTitle': 'Chaque jour',
+  'onboarding.proposeRewards.weeklyTitle': 'Chaque semaine',
+  'onboarding.proposeRewards.submit': 'Continuer',
+  'onboarding.proposeRewards.error': 'Une erreur est survenue, réessaie.',
   'onboarding.setThreshold.title': 'Combien de points pour réussir sa journée ?',
   'onboarding.setThreshold.explanation':
     "On te propose un seuil calculé à partir de ses règles. Tu peux l'ajuster — tu pourras toujours le changer plus tard.",

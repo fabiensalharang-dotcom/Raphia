@@ -59,6 +59,9 @@ export default function SetThreshold() {
   if (onboarding.status === 'needs-rules') {
     return <Redirect href="/(auth)/propose-rules" />;
   }
+  if (onboarding.status === 'needs-rewards') {
+    return <Redirect href="/(auth)/propose-rewards" />;
+  }
   if (onboarding.status === 'ready') {
     return <Redirect href="/" />;
   }

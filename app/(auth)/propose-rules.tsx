@@ -82,6 +82,7 @@ export default function ProposeRules() {
   }
   if (
     onboarding.status === 'needs-child' ||
+    onboarding.status === 'needs-rewards' ||
     onboarding.status === 'needs-threshold' ||
     onboarding.status === 'ready'
   ) {

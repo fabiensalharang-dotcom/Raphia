@@ -17,6 +17,8 @@ export default function Home() {
       return <Redirect href="/(auth)/add-child" />;
     case 'needs-rules':
       return <Redirect href="/(auth)/propose-rules" />;
+    case 'needs-rewards':
+      return <Redirect href="/(auth)/propose-rewards" />;
     case 'needs-threshold':
       return <Redirect href="/(auth)/set-threshold" />;
     case 'ready':

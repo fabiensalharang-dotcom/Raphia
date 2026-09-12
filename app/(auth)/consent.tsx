@@ -28,6 +28,7 @@ export default function Consent() {
   if (
     onboarding.status === 'needs-child' ||
     onboarding.status === 'needs-rules' ||
+    onboarding.status === 'needs-rewards' ||
     onboarding.status === 'needs-threshold' ||
     onboarding.status === 'ready'
   ) {

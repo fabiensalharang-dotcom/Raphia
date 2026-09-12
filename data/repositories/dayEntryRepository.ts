@@ -221,6 +221,22 @@ export async function fetchDayEntry(childId: string, date: string): Promise<DayE
   return vue;
 }
 
+// Pour le cumul hebdomadaire (§5.3), sans passer par week_summary (lot L7) —
+// lit directement les threshold_met déjà figés des jours de la semaine.
+export async function fetchThresholdsForDates(
+  childId: string,
+  dates: string[]
+): Promise<{ date: string; thresholdMet: boolean }[]> {
+  const { data, error } = await supabase
+    .from('day_entry')
+    .select('date, threshold_met')
+    .eq('child_id', childId)
+    .in('date', dates);
+  if (error) throw error;
+  const parDate = new Map((data ?? []).map((j) => [j.date, j.threshold_met]));
+  return dates.map((date) => ({ date, thresholdMet: parDate.get(date) ?? false }));
+}
+
 export async function getOrCreateDayEntry(
   childId: string,
   date: string,

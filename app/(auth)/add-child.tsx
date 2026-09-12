@@ -22,6 +22,7 @@ export default function AddChild() {
   }
   if (
     onboarding.status === 'needs-rules' ||
+    onboarding.status === 'needs-rewards' ||
     onboarding.status === 'needs-threshold' ||
     onboarding.status === 'ready'
   ) {
