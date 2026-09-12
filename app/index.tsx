@@ -17,6 +17,8 @@ export default function Home() {
       return <Redirect href="/(auth)/consent" />;
     case 'needs-child':
       return <Redirect href="/(auth)/add-child" />;
+    case 'needs-rules':
+      return <Redirect href="/(auth)/propose-rules" />;
     case 'ready':
       return (
         <View style={styles.container}>

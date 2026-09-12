@@ -8,6 +8,7 @@ type OnboardingState =
   | { status: 'signed-out' }
   | { status: 'needs-consent' }
   | { status: 'needs-child'; householdId: string }
+  | { status: 'needs-rules'; householdId: string; childId: string }
   | { status: 'ready'; householdId: string };
 
 export function useOnboardingState(): OnboardingState {
@@ -44,12 +45,26 @@ export function useOnboardingState(): OnboardingState {
         .from('child')
         .select('id')
         .eq('household_id', caregiver.household_id)
+        .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
 
       if (cancelled) return;
       if (childError || !child) {
         setState({ status: 'needs-child', householdId: caregiver.household_id });
+        return;
+      }
+
+      const { data: rule, error: ruleError } = await supabase
+        .from('rule_instance')
+        .select('id')
+        .eq('child_id', child.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (ruleError || !rule) {
+        setState({ status: 'needs-rules', householdId: caregiver.household_id, childId: child.id });
         return;
       }
 

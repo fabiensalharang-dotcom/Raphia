@@ -25,7 +25,11 @@ export default function Consent() {
   if (onboarding.status === 'signed-out') {
     return <Redirect href="/(auth)/sign-in" />;
   }
-  if (onboarding.status === 'needs-child' || onboarding.status === 'ready') {
+  if (
+    onboarding.status === 'needs-child' ||
+    onboarding.status === 'needs-rules' ||
+    onboarding.status === 'ready'
+  ) {
     return <Redirect href="/" />;
   }
 

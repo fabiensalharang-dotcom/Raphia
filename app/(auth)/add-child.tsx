@@ -1,21 +1,16 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('fr-FR');
-}
+import { DateField } from './_DateField';
 
 export default function AddChild() {
   const onboarding = useOnboardingState();
   const [firstName, setFirstName] = useState('');
   const [birthDate, setBirthDate] = useState<Date | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,7 +20,7 @@ export default function AddChild() {
   if (onboarding.status === 'needs-consent') {
     return <Redirect href="/(auth)/consent" />;
   }
-  if (onboarding.status === 'ready') {
+  if (onboarding.status === 'needs-rules' || onboarding.status === 'ready') {
     return <Redirect href="/" />;
   }
 
@@ -58,22 +53,12 @@ export default function AddChild() {
         onChangeText={setFirstName}
       />
 
-      <TouchableOpacity style={styles.input} onPress={() => setShowPicker(true)}>
-        <Text>{birthDate ? formatDate(birthDate) : strings['onboarding.addChild.field.birthDate']}</Text>
-      </TouchableOpacity>
-
-      {showPicker && (
-        <DateTimePicker
-          value={birthDate ?? new Date(2018, 0, 1)}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          maximumDate={new Date()}
-          onChange={(_event, selectedDate) => {
-            setShowPicker(false);
-            if (selectedDate) setBirthDate(selectedDate);
-          }}
-        />
-      )}
+      <DateField
+        value={birthDate}
+        onChange={setBirthDate}
+        placeholder={strings['onboarding.addChild.field.birthDate']}
+        maximumDate={new Date()}
+      />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
