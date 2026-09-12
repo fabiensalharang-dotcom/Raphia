@@ -46,3 +46,6 @@ yarn-error.*
 
 # archive d'upload redondante avec docs/conception.md, CLAUDE.md, demarrage-developpement.md
 files.zip
+
+# fichiers verrous Microsoft Office
+~$*
