@@ -5,7 +5,7 @@ import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 import { supabase } from '../../data/supabaseClient';
 import { useSession } from '../../data/useSession';
 import { strings } from '../../i18n/fr-FR';
-import { authErrorMessage } from './authErrors';
+import { authErrorMessage } from './_authErrors';
 
 export default function SignUp() {
   const { session } = useSession();
