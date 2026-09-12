@@ -1,0 +1,17 @@
+export const auth = {
+  'auth.signIn.title': 'Connexion',
+  'auth.signIn.submit': 'Se connecter',
+  'auth.signIn.switchToSignUp': 'Pas encore de compte ? Crée-le',
+  'auth.signUp.title': 'Créer ton compte',
+  'auth.signUp.submit': 'Créer mon compte',
+  'auth.signUp.switchToSignIn': 'Déjà un compte ? Connecte-toi',
+  'auth.field.email': 'Adresse email',
+  'auth.field.password': 'Mot de passe',
+  'auth.field.confirmPassword': 'Confirme le mot de passe',
+  'auth.signOut': 'Se déconnecter',
+  'auth.error.generic': 'Une erreur est survenue, réessaie.',
+  'auth.error.invalidCredentials': 'Email ou mot de passe incorrect.',
+  'auth.error.userAlreadyExists': 'Un compte existe déjà avec cet email.',
+  'auth.error.weakPassword': 'Le mot de passe doit faire au moins 6 caractères.',
+  'auth.error.passwordMismatch': 'Les deux mots de passe ne correspondent pas.',
+};
