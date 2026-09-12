@@ -8,6 +8,7 @@ export type RuleCheckView = {
   ruleInstanceId: string;
   label: string;
   shortLabel: string;
+  icon: string;
   points: number;
   isThematic: boolean;
   bonusValue: number;
@@ -72,7 +73,7 @@ async function chargerDepuisServeur(
 ): Promise<DayEntryView> {
   const { data: reglesActives, error: reglesError } = await supabase
     .from('rule_instance')
-    .select('id, label, short_label, points, is_thematic, bonus_value, status')
+    .select('id, label, short_label, icon, points, is_thematic, bonus_value, status')
     .eq('child_id', childId)
     .eq('status', 'active');
   if (reglesError) throw reglesError;
@@ -116,6 +117,7 @@ async function chargerDepuisServeur(
       ruleInstanceId: r.id,
       label: r.label,
       shortLabel: r.short_label,
+      icon: r.icon,
       points: r.points,
       isThematic: r.is_thematic,
       bonusValue: r.bonus_value,
@@ -181,7 +183,7 @@ export async function fetchDayEntry(childId: string, date: string): Promise<DayE
     await Promise.all([
       supabase
         .from('rule_instance')
-        .select('id, label, short_label, points, is_thematic, bonus_value, status')
+        .select('id, label, short_label, icon, points, is_thematic, bonus_value, status')
         .eq('child_id', childId),
       supabase.from('rule_check').select('rule_instance_id, state').eq('day_entry_id', dayEntry.id),
     ]);
@@ -197,6 +199,7 @@ export async function fetchDayEntry(childId: string, date: string): Promise<DayE
       ruleInstanceId: r.id,
       label: r.label,
       shortLabel: r.short_label,
+      icon: r.icon,
       points: r.points,
       isThematic: r.is_thematic,
       bonusValue: r.bonus_value,

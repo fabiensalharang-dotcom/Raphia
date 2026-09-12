@@ -1,4 +1,4 @@
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -203,6 +203,13 @@ export default function Today() {
             </TouchableOpacity>
           ))}
 
+          <TouchableOpacity
+            style={styles.displayButton}
+            onPress={() => childId && router.push(`/display/${childId}`)}
+          >
+            <Text style={styles.displayButtonText}>{strings['today.switchToDisplay']}</Text>
+          </TouchableOpacity>
+
           {dayView.isClosed ? (
             <Text style={styles.closed}>{strings['today.dayClosed']}</Text>
           ) : !modifiable ? (
@@ -286,6 +293,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#208AEF',
     marginBottom: 4,
+  },
+  displayButton: {
+    borderWidth: 1,
+    borderColor: '#208AEF',
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  displayButtonText: {
+    color: '#208AEF',
+    fontWeight: '600',
   },
   closeButton: {
     backgroundColor: '#208AEF',
