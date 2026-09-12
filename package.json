@@ -27,7 +27,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test": "jest",
+    "test:rls": "node --env-file=.env tests/integration/rls-isolation.mjs"
   },
   "jest": {
     "preset": "jest-expo",
