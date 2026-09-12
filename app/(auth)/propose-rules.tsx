@@ -80,7 +80,11 @@ export default function ProposeRules() {
   if (onboarding.status === 'needs-consent') {
     return <Redirect href="/(auth)/consent" />;
   }
-  if (onboarding.status === 'needs-child' || onboarding.status === 'ready') {
+  if (
+    onboarding.status === 'needs-child' ||
+    onboarding.status === 'needs-threshold' ||
+    onboarding.status === 'ready'
+  ) {
     return <Redirect href="/" />;
   }
 

@@ -1,6 +1,6 @@
 import type { AuthError } from '@supabase/supabase-js';
 
-import { strings } from '../../i18n/fr-FR';
+import { strings } from '../i18n/fr-FR';
 
 export function authErrorMessage(error: AuthError): string {
   switch (error.code) {

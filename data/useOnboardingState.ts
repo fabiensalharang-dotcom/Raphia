@@ -9,7 +9,8 @@ type OnboardingState =
   | { status: 'needs-consent' }
   | { status: 'needs-child'; householdId: string }
   | { status: 'needs-rules'; householdId: string; childId: string }
-  | { status: 'ready'; householdId: string };
+  | { status: 'needs-threshold'; householdId: string; childId: string }
+  | { status: 'ready'; householdId: string; childId: string };
 
 export function useOnboardingState(): OnboardingState {
   const { session, loading: sessionLoading } = useSession();
@@ -43,7 +44,7 @@ export function useOnboardingState(): OnboardingState {
 
       const { data: child, error: childError } = await supabase
         .from('child')
-        .select('id')
+        .select('id, settings')
         .eq('household_id', caregiver.household_id)
         .order('created_at', { ascending: true })
         .limit(1)
@@ -68,7 +69,13 @@ export function useOnboardingState(): OnboardingState {
         return;
       }
 
-      setState({ status: 'ready', householdId: caregiver.household_id });
+      const settings = (child.settings ?? {}) as { dailyThreshold?: number };
+      if (typeof settings.dailyThreshold !== 'number') {
+        setState({ status: 'needs-threshold', householdId: caregiver.household_id, childId: child.id });
+        return;
+      }
+
+      setState({ status: 'ready', householdId: caregiver.household_id, childId: child.id });
     }
 
     check();

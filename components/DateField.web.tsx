@@ -1,8 +1,8 @@
-import type { DateFieldProps } from './_DateField.types';
+import type { DateFieldProps } from './DateField.types';
 
 // Variante web : @react-native-community/datetimepicker n'a aucun support
 // web (vérifié dans son code source, aucun fichier .web.*). Metro résout
-// automatiquement ce fichier à la place de _DateField.tsx quand la cible
+// automatiquement ce fichier à la place de DateField.tsx quand la cible
 // est le web — le natif iOS/Android n'est pas concerné.
 export function DateField({ value, onChange, placeholder, maximumDate }: DateFieldProps) {
   return (

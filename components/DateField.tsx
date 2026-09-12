@@ -2,7 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
-import type { DateFieldProps } from './_DateField.types';
+import type { DateFieldProps } from './DateField.types';
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString('fr-FR');

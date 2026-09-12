@@ -5,7 +5,7 @@ import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
-import { DateField } from './_DateField';
+import { DateField } from '../../components/DateField';
 
 export default function AddChild() {
   const onboarding = useOnboardingState();
@@ -20,7 +20,11 @@ export default function AddChild() {
   if (onboarding.status === 'needs-consent') {
     return <Redirect href="/(auth)/consent" />;
   }
-  if (onboarding.status === 'needs-rules' || onboarding.status === 'ready') {
+  if (
+    onboarding.status === 'needs-rules' ||
+    onboarding.status === 'needs-threshold' ||
+    onboarding.status === 'ready'
+  ) {
     return <Redirect href="/" />;
   }
 

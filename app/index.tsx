@@ -1,16 +1,14 @@
 import { Redirect } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { View } from 'react-native';
 
-import { supabase } from '../data/supabaseClient';
 import { useOnboardingState } from '../data/useOnboardingState';
-import { strings } from '../i18n/fr-FR';
 
 export default function Home() {
   const onboarding = useOnboardingState();
 
   switch (onboarding.status) {
     case 'loading':
-      return <View style={styles.container} />;
+      return <View style={{ flex: 1 }} />;
     case 'signed-out':
       return <Redirect href="/(auth)/sign-in" />;
     case 'needs-consent':
@@ -19,30 +17,9 @@ export default function Home() {
       return <Redirect href="/(auth)/add-child" />;
     case 'needs-rules':
       return <Redirect href="/(auth)/propose-rules" />;
+    case 'needs-threshold':
+      return <Redirect href="/(auth)/set-threshold" />;
     case 'ready':
-      return (
-        <View style={styles.container}>
-          <Text style={styles.title}>{strings['app.name']}</Text>
-          <TouchableOpacity onPress={() => supabase.auth.signOut()}>
-            <Text style={styles.signOut}>{strings['auth.signOut']}</Text>
-          </TouchableOpacity>
-        </View>
-      );
+      return <Redirect href="/(main)/today" />;
   }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  signOut: {
-    color: '#208AEF',
-  },
-});
