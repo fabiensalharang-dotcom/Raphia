@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { estJourDeControle } from '../../core/pilotage';
 import { calculerScoreJournalier, verifierSeuilAtteint } from '../../core/scoring';
 import type { EtatRegle, PointageRegle, StatutRegle } from '../../core/scoring/types';
 import { supabase } from '../supabaseClient';
@@ -78,6 +79,23 @@ async function chargerDepuisServeur(
     .eq('status', 'active');
   if (reglesError) throw reglesError;
 
+  // §6.2 : une règle acquired repasse une seule journée par mois dans le
+  // tableau, pour vérifier qu'elle tient toujours — sans jamais compter
+  // dans le score (calculerScoreJournalier ignore déjà tout statut
+  // différent de « active »).
+  const { data: reglesAcquises, error: acquisesError } = await supabase
+    .from('rule_instance')
+    .select('id, label, short_label, icon, points, is_thematic, bonus_value, status, acquired_at')
+    .eq('child_id', childId)
+    .eq('status', 'acquired')
+    .not('acquired_at', 'is', null);
+  if (acquisesError) throw acquisesError;
+
+  const reglesEnControle = (reglesAcquises ?? []).filter(
+    (r) => r.acquired_at && estJourDeControle(r.acquired_at, date)
+  );
+  const reglesDuJour = [...(reglesActives ?? []), ...reglesEnControle];
+
   let { data: dayEntry, error: dayEntryError } = await supabase
     .from('day_entry')
     .select('id, points_total, threshold_applied, threshold_met, is_closed')
@@ -103,7 +121,7 @@ async function chargerDepuisServeur(
   if (checksError) throw checksError;
 
   const checksParRegle = new Map((checksExistants ?? []).map((c) => [c.rule_instance_id, c]));
-  const aCreer = (reglesActives ?? []).filter((r) => !checksParRegle.has(r.id));
+  const aCreer = reglesDuJour.filter((r) => !checksParRegle.has(r.id));
   if (aCreer.length > 0) {
     const { error: insertError } = await supabase
       .from('rule_check')
@@ -111,7 +129,7 @@ async function chargerDepuisServeur(
     if (insertError) throw insertError;
   }
 
-  const checks: RuleCheckView[] = (reglesActives ?? []).map((r) => {
+  const checks: RuleCheckView[] = reglesDuJour.map((r) => {
     const existant = checksParRegle.get(r.id);
     return {
       ruleInstanceId: r.id,

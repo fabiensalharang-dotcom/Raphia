@@ -2,6 +2,7 @@ import { auth } from './auth';
 import { common } from './common';
 import { display } from './display';
 import { onboarding } from './onboarding';
+import { pilotage } from './pilotage';
 import { progress } from './progress';
 import { today } from './today';
 
@@ -12,4 +13,5 @@ export const strings = {
   ...today,
   ...display,
   ...progress,
+  ...pilotage,
 };

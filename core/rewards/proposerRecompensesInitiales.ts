@@ -13,7 +13,7 @@ function estPrioritaire(recompense: RewardTemplate): boolean {
 // proposées à la création — les récompenses matérielles ne doivent jamais
 // être majoritaires. On applique la même priorité aux 2 hebdomadaires,
 // cohérent avec D7 sans être exigé par un chiffre précis.
-function selectionnerAvecPriorite(candidats: RewardTemplate[], n: number): RewardTemplate[] {
+export function selectionnerAvecPriorite(candidats: RewardTemplate[], n: number): RewardTemplate[] {
   const prioritaires = candidats.filter(estPrioritaire);
   const autres = candidats.filter((c) => !estPrioritaire(c));
   const minPrioritaires = Math.min(3, prioritaires.length, n);

@@ -1,5 +1,6 @@
 export const today = {
   'today.thematicBadge': 'Règle thématique',
+  'today.monthlyCheckBadge': 'Vérification mensuelle',
   'today.noEntryForDay': "Aucune donnée pour ce jour.",
   'today.closeDay': 'Clôturer la journée',
   'today.dayClosed': 'Journée clôturée',

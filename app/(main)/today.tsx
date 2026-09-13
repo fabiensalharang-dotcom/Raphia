@@ -11,6 +11,7 @@ import {
   mettreAJourCochage,
   type DayEntryView,
 } from '../../data/repositories/dayEntryRepository';
+import { evaluerEtCreerSuggestion, verifierControlesPonctuels } from '../../data/repositories/pilotageRepository';
 import {
   fetchRecompensesEnAttente,
   marquerConsommee,
@@ -165,6 +166,19 @@ export default function Today() {
     if (!dayView || !modifiable) return;
     const nouvelleVue = await cloturerJournee(dayView);
     setDayView(nouvelleVue);
+
+    // §6.2 : corrige le statut d'une règle en contrôle ponctuel avant
+    // d'évaluer les déclencheurs, pour ne pas suggérer sur une base fausse.
+    if (childId && timezone) {
+      try {
+        await verifierControlesPonctuels(nouvelleVue.dayEntryId);
+        await evaluerEtCreerSuggestion(childId, timezone);
+      } catch {
+        // Le pilotage est une couche secondaire : une erreur ici ne doit
+        // jamais bloquer la clôture, déjà actée localement et côté serveur.
+      }
+    }
+
     // §7.2 : la séquence enfant se joue en Mode Affichage, déclenchée par
     // la clôture de la journée.
     if (childId) router.push(`/display/${childId}`);
@@ -217,6 +231,7 @@ export default function Today() {
               disabled={!modifiable}
             >
               {check.isThematic && <Text style={styles.badge}>{strings['today.thematicBadge']}</Text>}
+              {check.status === 'acquired' && <Text style={styles.badge}>{strings['today.monthlyCheckBadge']}</Text>}
               <Text
                 style={[
                   styles.ruleLabel,
@@ -237,6 +252,10 @@ export default function Today() {
 
           <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/progress')}>
             <Text style={styles.displayButtonText}>{strings['progress.openProgress']}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/pilotage')}>
+            <Text style={styles.displayButtonText}>{strings['pilotage.openPilotage']}</Text>
           </TouchableOpacity>
 
           {dayView.isClosed ? (
