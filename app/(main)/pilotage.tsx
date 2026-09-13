@@ -21,19 +21,25 @@ import {
   type SuggestionView,
 } from '../../data/repositories/pilotageRepository';
 import { fetchRuleTemplates } from '../../data/repositories/ruleTemplateRepository';
+import { supabase } from '../../data/supabaseClient';
+import { enregistrerEvenement, filtrerTexteIdentifiant } from '../../data/telemetry';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
 
 type CarteProps = {
   suggestion: SuggestionView;
   childId: string;
+  householdId: string;
+  prenomEnfant: string;
   onResolved: () => void;
 };
 
 export default function Pilotage() {
   const onboarding = useOnboardingState();
   const childId = onboarding.status === 'ready' ? onboarding.childId : null;
+  const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
   const [suggestions, setSuggestions] = useState<SuggestionView[] | null>(null);
+  const [prenomEnfant, setPrenomEnfant] = useState('');
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -47,6 +53,14 @@ export default function Pilotage() {
         if (!cancelled) setError(true);
       }
     );
+    supabase
+      .from('child')
+      .select('first_name')
+      .eq('id', childId)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled && data) setPrenomEnfant(data.first_name);
+      });
     return () => {
       cancelled = true;
     };
@@ -81,6 +95,8 @@ export default function Pilotage() {
           key={suggestion.id}
           suggestion={suggestion}
           childId={childId as string}
+          householdId={householdId as string}
+          prenomEnfant={prenomEnfant}
           onResolved={() => retirerSuggestion(suggestion.id)}
         />
       ))}
@@ -88,26 +104,27 @@ export default function Pilotage() {
   );
 }
 
-function CarteSuggestion({ suggestion, childId, onResolved }: CarteProps) {
+function CarteSuggestion(props: CarteProps) {
+  const { suggestion } = props;
   switch (suggestion.type) {
     case 'rule_acquired':
-      return <CarteRegleAcquise suggestion={suggestion} childId={childId} onResolved={onResolved} />;
+      return <CarteRegleAcquise {...props} />;
     case 'rule_failing':
-      return <CarteRegleEnEchec suggestion={suggestion} childId={childId} onResolved={onResolved} />;
+      return <CarteRegleEnEchec {...props} />;
     case 'reward_fatigue':
-      return <CarteRecompenseUsee suggestion={suggestion} childId={childId} onResolved={onResolved} />;
+      return <CarteRecompenseUsee {...props} />;
     case 'threshold_high':
-      return <CarteSeuil suggestion={suggestion} childId={childId} onResolved={onResolved} sens="haut" />;
+      return <CarteSeuil {...props} sens="haut" />;
     case 'threshold_low':
-      return <CarteSeuil suggestion={suggestion} childId={childId} onResolved={onResolved} sens="bas" />;
+      return <CarteSeuil {...props} sens="bas" />;
     case 'age_change':
-      return <CarteChangementAge suggestion={suggestion} childId={childId} onResolved={onResolved} />;
+      return <CarteChangementAge {...props} />;
     default:
       return null;
   }
 }
 
-function CarteRegleAcquise({ suggestion, childId, onResolved }: CarteProps) {
+function CarteRegleAcquise({ suggestion, childId, householdId, onResolved }: CarteProps) {
   const ruleInstanceId = suggestion.payload.ruleInstanceId as string;
   const label = suggestion.payload.label as string;
   const [busy, setBusy] = useState(false);
@@ -115,11 +132,13 @@ function CarteRegleAcquise({ suggestion, childId, onResolved }: CarteProps) {
   async function marquer() {
     setBusy(true);
     await accepterRegleAcquise(suggestion.id, childId, ruleInstanceId);
+    enregistrerEvenement(householdId, 'suggestion_accepted', { suggestionType: suggestion.type, action: 'mark_acquired' });
     onResolved();
   }
   async function garder() {
     setBusy(true);
     await dismisserSuggestion(suggestion.id);
+    enregistrerEvenement(householdId, 'suggestion_dismissed', { suggestionType: suggestion.type, action: 'keep_going' });
     onResolved();
   }
 
@@ -141,7 +160,7 @@ function CarteRegleAcquise({ suggestion, childId, onResolved }: CarteProps) {
   );
 }
 
-function CarteRegleEnEchec({ suggestion, childId, onResolved }: CarteProps) {
+function CarteRegleEnEchec({ suggestion, childId, householdId, prenomEnfant, onResolved }: CarteProps) {
   const ruleInstanceId = suggestion.payload.ruleInstanceId as string;
   const label = suggestion.payload.label as string;
   const splitInto = (suggestion.payload.splitInto as string[] | undefined) ?? [];
@@ -166,6 +185,7 @@ function CarteRegleEnEchec({ suggestion, childId, onResolved }: CarteProps) {
   async function decouper(templateId: string) {
     setBusy(true);
     await decouperRegleEnEchec(suggestion.id, childId, ruleInstanceId, templateId);
+    enregistrerEvenement(householdId, 'suggestion_accepted', { suggestionType: suggestion.type, action: 'split' });
     onResolved();
   }
   async function enregistrerReformulation() {
@@ -173,16 +193,23 @@ function CarteRegleEnEchec({ suggestion, childId, onResolved }: CarteProps) {
     setBusy(true);
     const courte = nouveauShortLabel.trim() || nouveauLabel.trim().slice(0, 28);
     await reformulerRegle(suggestion.id, ruleInstanceId, nouveauLabel.trim(), courte);
+    enregistrerEvenement(householdId, 'suggestion_accepted', { suggestionType: suggestion.type, action: 'rewrite' });
+    enregistrerEvenement(householdId, 'rule_relabeled', {
+      before: filtrerTexteIdentifiant(label, prenomEnfant),
+      after: filtrerTexteIdentifiant(nouveauLabel.trim(), prenomEnfant),
+    });
     onResolved();
   }
   async function mettreEnPause() {
     setBusy(true);
     await mettreRegleEnRetrait(suggestion.id, ruleInstanceId);
+    enregistrerEvenement(householdId, 'suggestion_accepted', { suggestionType: suggestion.type, action: 'pause' });
     onResolved();
   }
   async function ecarter() {
     setBusy(true);
     await dismisserSuggestion(suggestion.id);
+    enregistrerEvenement(householdId, 'suggestion_dismissed', { suggestionType: suggestion.type });
     onResolved();
   }
 
@@ -246,7 +273,7 @@ function CarteRegleEnEchec({ suggestion, childId, onResolved }: CarteProps) {
   );
 }
 
-function CarteRecompenseUsee({ suggestion, childId, onResolved }: CarteProps) {
+function CarteRecompenseUsee({ suggestion, childId, householdId, onResolved }: CarteProps) {
   const rewardInstanceId = suggestion.payload.rewardInstanceId as string | null;
   const [info, setInfo] = useState<RecompenseInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -265,11 +292,13 @@ function CarteRecompenseUsee({ suggestion, childId, onResolved }: CarteProps) {
   async function ajouter() {
     setBusy(true);
     await ajouterRecompensesApresUsure(suggestion.id, childId, info?.tier ?? 'daily');
+    enregistrerEvenement(householdId, 'suggestion_accepted', { suggestionType: suggestion.type, action: 'add_rewards' });
     onResolved();
   }
   async function toutVaBien() {
     setBusy(true);
     await dismisserSuggestion(suggestion.id);
+    enregistrerEvenement(householdId, 'suggestion_dismissed', { suggestionType: suggestion.type, action: 'all_good' });
     onResolved();
   }
 
@@ -293,7 +322,7 @@ function CarteRecompenseUsee({ suggestion, childId, onResolved }: CarteProps) {
   );
 }
 
-function CarteSeuil({ suggestion, childId, onResolved, sens }: CarteProps & { sens: 'haut' | 'bas' }) {
+function CarteSeuil({ suggestion, childId, householdId, onResolved, sens }: CarteProps & { sens: 'haut' | 'bas' }) {
   const [candidat, setCandidat] = useState<RuleTemplate[] | null>(null);
   const [reglesActives, setReglesActives] = useState<RegleActiveOption[] | null>(null);
   const [choisirRegleARetirer, setChoisirRegleARetirer] = useState(false);
@@ -315,12 +344,14 @@ function CarteSeuil({ suggestion, childId, onResolved, sens }: CarteProps & { se
   async function ajusterSeuil() {
     setBusy(true);
     await ajusterSeuilQuotidien(suggestion.id, childId, sens === 'haut' ? 1 : -1);
+    enregistrerEvenement(householdId, 'suggestion_accepted', { suggestionType: suggestion.type, action: 'adjust_threshold' });
     onResolved();
   }
   async function ajouterRegle(template: RuleTemplate) {
     setBusy(true);
     const ok = await ajouterRegleChoisie(suggestion.id, childId, template);
     if (ok) {
+      enregistrerEvenement(householdId, 'suggestion_accepted', { suggestionType: suggestion.type, action: 'add_rule' });
       onResolved();
     } else {
       setBusy(false);
@@ -335,11 +366,13 @@ function CarteSeuil({ suggestion, childId, onResolved, sens }: CarteProps & { se
   async function retirer(ruleInstanceId: string) {
     setBusy(true);
     await mettreRegleEnRetrait(suggestion.id, ruleInstanceId);
+    enregistrerEvenement(householdId, 'suggestion_accepted', { suggestionType: suggestion.type, action: 'remove_rule' });
     onResolved();
   }
   async function ecarter() {
     setBusy(true);
     await dismisserSuggestion(suggestion.id);
+    enregistrerEvenement(householdId, 'suggestion_dismissed', { suggestionType: suggestion.type });
     onResolved();
   }
 
@@ -402,7 +435,7 @@ function CarteSeuil({ suggestion, childId, onResolved, sens }: CarteProps & { se
   );
 }
 
-function CarteChangementAge({ suggestion, childId, onResolved }: CarteProps) {
+function CarteChangementAge({ suggestion, childId, householdId, onResolved }: CarteProps) {
   const age = suggestion.payload.age as number;
   const [candidats, setCandidats] = useState<RuleTemplate[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -423,6 +456,7 @@ function CarteChangementAge({ suggestion, childId, onResolved }: CarteProps) {
     setBusy(true);
     const ok = await ajouterRegleChoisie(suggestion.id, childId, template);
     if (ok) {
+      enregistrerEvenement(householdId, 'suggestion_accepted', { suggestionType: suggestion.type, action: 'add_rule' }, age);
       onResolved();
     } else {
       setBusy(false);
@@ -432,6 +466,7 @@ function CarteChangementAge({ suggestion, childId, onResolved }: CarteProps) {
   async function ecarter() {
     setBusy(true);
     await dismisserSuggestion(suggestion.id);
+    enregistrerEvenement(householdId, 'suggestion_dismissed', { suggestionType: suggestion.type }, age);
     onResolved();
   }
 

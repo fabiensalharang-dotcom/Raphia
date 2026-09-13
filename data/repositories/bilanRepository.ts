@@ -26,6 +26,7 @@ import {
 import { fetchDayEntriesForDates } from './dayEntryRepository';
 import { fetchHistoriqueRegles } from './pilotageRepository';
 import { supabase } from '../supabaseClient';
+import { enregistrerEvenement } from '../telemetry';
 
 const NB_VARIANTES_OBSERVATION = 5;
 const NB_VARIANTES_QUESTION = 4;
@@ -465,7 +466,11 @@ export type DailyDigestData = {
 };
 
 export async function fetchDailyDigest(childId: string, date: string): Promise<DailyDigestData | null> {
-  const { data: child, error: childError } = await supabase.from('child').select('first_name').eq('id', childId).single();
+  const { data: child, error: childError } = await supabase
+    .from('child')
+    .select('first_name, household_id')
+    .eq('id', childId)
+    .single();
   if (childError || !child) throw childError ?? new Error('child introuvable');
 
   const { data: dayEntry, error: dayEntryError } = await supabase
@@ -496,6 +501,7 @@ export async function fetchDailyDigest(childId: string, date: string): Promise<D
 
   if (!digest.read_at) {
     await supabase.from('daily_digest').update({ read_at: new Date().toISOString() }).eq('id', digest.id);
+    enregistrerEvenement(child.household_id, 'digest_opened', { type: 'daily' });
   }
 
   return {
@@ -541,6 +547,8 @@ export async function fetchLatestWeeklyDigest(childId: string): Promise<WeeklyDi
 
   if (!data.read_at) {
     await supabase.from('weekly_digest').update({ read_at: new Date().toISOString() }).eq('id', data.id);
+    const { data: child } = await supabase.from('child').select('household_id').eq('id', childId).single();
+    if (child) enregistrerEvenement(child.household_id, 'digest_opened', { type: 'weekly' });
   }
 
   // §7.8 : la récompense hebdomadaire est lue en direct (elle peut avoir

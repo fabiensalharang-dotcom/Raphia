@@ -6,6 +6,7 @@ import { calculerAge, classerParAnnee, proposerReglesInitiales } from '../../cor
 import type { RuleTemplate } from '../../core/referential/types';
 import { fetchRuleTemplates } from '../../data/repositories/ruleTemplateRepository';
 import { supabase } from '../../data/supabaseClient';
+import { enregistrerEvenement } from '../../data/telemetry';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
 
@@ -38,6 +39,8 @@ export default function ProposeRules() {
   const [showAddList, setShowAddList] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [proposesInitialement, setProposesInitialement] = useState<string[]>([]);
+  const [ageEnfant, setAgeEnfant] = useState<number | undefined>(undefined);
 
   const childId = onboarding.status === 'needs-rules' ? onboarding.childId : null;
 
@@ -61,11 +64,15 @@ export default function ProposeRules() {
       const classees = classerParAnnee(templates, age);
       const { thematique, standard } = proposerReglesInitiales(classees);
 
-      setCandidats(classees);
-      setSlots([
+      const slotsInitiaux = [
         ...(thematique ? [slotFromTemplate(thematique, true)] : []),
         ...standard.map((regle) => slotFromTemplate(regle, false)),
-      ]);
+      ];
+
+      setCandidats(classees);
+      setSlots(slotsInitiaux);
+      setProposesInitialement(slotsInitiaux.map((slot) => slot.templateId));
+      setAgeEnfant(age);
     }
 
     load();
@@ -126,6 +133,17 @@ export default function ProposeRules() {
       setError(strings['onboarding.proposeRules.error']);
       return;
     }
+
+    const idsRetenus = slots.map((slot) => slot.templateId);
+    for (const templateId of proposesInitialement) {
+      enregistrerEvenement(
+        onboarding.householdId,
+        idsRetenus.includes(templateId) ? 'rule_kept' : 'rule_discarded',
+        { templateId },
+        ageEnfant
+      );
+    }
+
     router.replace('/');
   }
 

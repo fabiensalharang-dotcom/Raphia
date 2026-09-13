@@ -26,6 +26,7 @@ import {
   programmerNotificationBilan,
   programmerNotificationBilanHebdomadaire,
 } from '../../data/notifications';
+import { enregistrerEvenement } from '../../data/telemetry';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
 
@@ -181,6 +182,7 @@ export default function Today() {
     if (!dayView || !modifiable) return;
     const nouvelleVue = await cloturerJournee(dayView);
     setDayView(nouvelleVue);
+    if (householdId) enregistrerEvenement(householdId, 'day_closed', { thresholdMet: nouvelleVue.thresholdMet });
 
     // §6.2 : corrige le statut d'une règle en contrôle ponctuel avant
     // d'évaluer les déclencheurs, pour ne pas suggérer sur une base fausse.
@@ -288,6 +290,10 @@ export default function Today() {
 
           <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/bilan')}>
             <Text style={styles.displayButtonText}>{strings['bilan.openBilan']}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/parametres')}>
+            <Text style={styles.displayButtonText}>{strings['parametres.openParametres']}</Text>
           </TouchableOpacity>
 
           {dayView.isClosed ? (

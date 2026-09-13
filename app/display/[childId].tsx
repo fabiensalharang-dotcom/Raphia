@@ -7,6 +7,8 @@ import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View } fro
 import { nomIoniconPour } from '../../components/ruleIcons';
 import { fetchDisplayState, type DisplayState } from '../../data/repositories/displayStateRepository';
 import { attribuerRecompense, fetchGrantForDayEntry } from '../../data/repositories/rewardGrantRepository';
+import { supabase } from '../../data/supabaseClient';
+import { enregistrerEvenement } from '../../data/telemetry';
 import { strings } from '../../i18n/fr-FR';
 
 // §7.2 : les 6 temps de la séquence, dans l'ordre. « threshold » et
@@ -46,6 +48,7 @@ export default function Display() {
   const [state, setState] = useState<DisplayState | null>(null);
   const [error, setError] = useState(false);
   const [revealed, setRevealed] = useState(0);
+  const [householdId, setHouseholdId] = useState<string | null>(null);
 
   const compteurAnim = useRef(new Animated.Value(0)).current;
   const [compteurAffiche, setCompteurAffiche] = useState(0);
@@ -79,6 +82,17 @@ export default function Display() {
         if (!cancelled) setError(true);
       }
     );
+
+    // §10.2 : identifiant nécessaire pour la télémétrie (reward_chosen),
+    // ne fait pas partie du DisplayState sérialisable de l'écran (§8.5).
+    supabase
+      .from('child')
+      .select('household_id')
+      .eq('id', childId)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled && data) setHouseholdId(data.household_id);
+      });
 
     return () => {
       cancelled = true;
@@ -154,6 +168,7 @@ export default function Display() {
     if (!state || !state.dayEntryId) return;
     const weekSummaryId = tier === 'weekly' ? state.weeklyReward?.weekSummaryId : undefined;
     await attribuerRecompense(childId, state.dayEntryId, rewardInstanceId, tier, weekSummaryId);
+    if (householdId) enregistrerEvenement(householdId, 'reward_chosen', { tier });
     const grant = await fetchGrantForDayEntry(state.dayEntryId, tier);
     setState((prev) => {
       if (!prev) return prev;

@@ -14,6 +14,7 @@ import {
 } from '../../data/repositories/bilanRepository';
 import { fetchDisplayState } from '../../data/repositories/displayStateRepository';
 import { supabase } from '../../data/supabaseClient';
+import { enregistrerEvenement } from '../../data/telemetry';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
 
@@ -113,6 +114,7 @@ export default function Bilan() {
       const uri = await captureRef(carteRef, { format: 'png', quality: 1 });
       await Sharing.shareAsync(uri);
       await marquerBilanPartage(digest.id);
+      if (onboarding.status === 'ready') enregistrerEvenement(onboarding.householdId, 'card_shared');
     } catch {
       setErreurPartage(strings['bilan.shareError']);
     } finally {
