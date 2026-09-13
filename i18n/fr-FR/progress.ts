@@ -1,0 +1,16 @@
+export const progress = {
+  'progress.title': 'Progression',
+  'progress.window4': '4 semaines',
+  'progress.window8': '8 semaines',
+  'progress.window12': '12 semaines',
+  'progress.pointsTitle': 'Points quotidiens',
+  'progress.pointsEmpty': "Pas encore de journée enregistrée sur cette période.",
+  'progress.ruleRatesTitle': 'Taux de réussite par règle',
+  'progress.ruleRatesEmpty': 'Pas encore de cochage sur cette période.',
+  'progress.weeklyThresholdsTitle': 'Seuils atteints par semaine',
+  'progress.weeklyThresholdsEmpty': 'Pas encore de semaine enregistrée sur cette période.',
+  'progress.dayOutOfSeven': 'jour sur 7',
+  'progress.daysOutOfSeven': 'jours sur 7',
+  'progress.openProgress': 'Voir la progression',
+  'progress.error': 'Impossible de charger la progression, réessaie.',
+};

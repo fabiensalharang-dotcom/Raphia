@@ -6,4 +6,8 @@ export { calculerSeuilPropose } from './calculerSeuilPropose';
 export { estJourModifiable } from './estJourModifiable';
 export { datesDeLaSemaine, estDernierJourDeLaSemaine } from './datesDeLaSemaine';
 export { semaineIso } from './semaineIso';
+export { calculerTauxReussiteParRegle } from './calculerTauxReussiteParRegle';
+export type { CochageRegle, TauxReussiteRegle } from './calculerTauxReussiteParRegle';
+export { calculerSeuilsAtteintsParSemaine } from './calculerSeuilsAtteintsParSemaine';
+export type { JourPourSemaine, SeuilsSemaine } from './calculerSeuilsAtteintsParSemaine';
 export type { EtatRegle, StatutRegle, PointageRegle, JourSemaine } from './types';

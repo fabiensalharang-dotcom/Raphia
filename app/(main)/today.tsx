@@ -377,6 +377,10 @@ export default function Today() {
             <Text style={styles.displayButtonText}>{strings['today.switchToDisplay']}</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/progress')}>
+            <Text style={styles.displayButtonText}>{strings['progress.openProgress']}</Text>
+          </TouchableOpacity>
+
           {dayView.isClosed ? (
             <Text style={styles.closed}>{strings['today.dayClosed']}</Text>
           ) : !modifiable ? (
