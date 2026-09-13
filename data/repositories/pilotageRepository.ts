@@ -51,7 +51,7 @@ async function marquerSuggestionResolue(suggestionId: string, status: 'accepted'
 // défaut, ou une case jamais ouverte, n'est jamais comptée en échec par ce
 // moteur — on préfère sous-déclencher que fabriquer un signal trompeur à
 // partir d'une absence de données.
-async function fetchHistoriqueRegles(
+export async function fetchHistoriqueRegles(
   childId: string,
   timezone: string,
   aujourdHui: string,

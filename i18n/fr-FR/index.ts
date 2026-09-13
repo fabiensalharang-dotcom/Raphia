@@ -1,4 +1,5 @@
 import { auth } from './auth';
+import { bilan } from './bilan';
 import { common } from './common';
 import { display } from './display';
 import { onboarding } from './onboarding';
@@ -14,4 +15,5 @@ export const strings = {
   ...display,
   ...progress,
   ...pilotage,
+  ...bilan,
 };

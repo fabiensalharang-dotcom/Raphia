@@ -2,7 +2,8 @@ import { Redirect, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { estJourModifiable } from '../../core/scoring';
+import { genererBilanDuJour, genererBilanHebdomadaireSiAbsent } from '../../data/repositories/bilanRepository';
+import { estDernierJourDeLaSemaine, estJourModifiable } from '../../core/scoring';
 import type { EtatRegle } from '../../core/scoring/types';
 import {
   cloturerJournee,
@@ -17,7 +18,14 @@ import {
   marquerConsommee,
   type PendingRewardGrant,
 } from '../../data/repositories/rewardGrantRepository';
+import { creerResumeSiAbsent } from '../../data/repositories/weekSummaryRepository';
 import { supabase } from '../../data/supabaseClient';
+import {
+  demanderAutorisationSiPremierRituel,
+  programmerNotificationAnniversaire,
+  programmerNotificationBilan,
+  programmerNotificationBilanHebdomadaire,
+} from '../../data/notifications';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
 
@@ -52,6 +60,8 @@ function suivantEtat(etatActuel: EtatRegle): EtatRegle {
 export default function Today() {
   const onboarding = useOnboardingState();
   const [timezone, setTimezone] = useState<string | null>(null);
+  const [weekStartDay, setWeekStartDay] = useState<number | null>(null);
+  const [digestTime, setDigestTime] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [dayView, setDayView] = useState<DayEntryView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,7 +78,7 @@ export default function Today() {
     async function initialiser() {
       const { data: household, error: householdError } = await supabase
         .from('household')
-        .select('timezone')
+        .select('timezone, week_start_day, digest_time')
         .eq('id', householdId as string)
         .single();
       if (cancelled) return;
@@ -77,6 +87,8 @@ export default function Today() {
         return;
       }
       setTimezone(household.timezone);
+      setWeekStartDay(household.week_start_day);
+      setDigestTime(household.digest_time);
       setSelectedDate(dateDuJourDansFuseau(household.timezone));
     }
 
@@ -98,13 +110,16 @@ export default function Today() {
         if (selectedDate === aujourdHui) {
           const { data: child, error: childError } = await supabase
             .from('child')
-            .select('settings')
+            .select('settings, birth_date')
             .eq('id', childId as string)
             .single();
           if (childError || !child) throw childError ?? new Error('child introuvable');
           const seuil = (child.settings as { dailyThreshold: number }).dailyThreshold;
           const vue = await getOrCreateDayEntry(childId as string, selectedDate as string, seuil);
           if (!cancelled) setDayView(vue);
+          // §6.6, §8.7 : programmée une fois pour toutes, se répète chaque
+          // année — un identifiant stable côté notification évite les doublons.
+          programmerNotificationAnniversaire(childId as string, child.birth_date).catch(() => {});
         } else {
           const vue = await fetchDayEntry(childId as string, selectedDate as string);
           if (!cancelled) setDayView(vue);
@@ -169,13 +184,26 @@ export default function Today() {
 
     // §6.2 : corrige le statut d'une règle en contrôle ponctuel avant
     // d'évaluer les déclencheurs, pour ne pas suggérer sur une base fausse.
+    // §7.10 : le bilan est généré à la clôture, jamais avant.
     if (childId && timezone) {
       try {
         await verifierControlesPonctuels(nouvelleVue.dayEntryId);
         await evaluerEtCreerSuggestion(childId, timezone);
+        await genererBilanDuJour(childId, nouvelleVue.dayEntryId, timezone);
+        await demanderAutorisationSiPremierRituel(childId);
+        if (digestTime) await programmerNotificationBilan(digestTime);
+
+        if (weekStartDay !== null && estDernierJourDeLaSemaine(nouvelleVue.date, weekStartDay)) {
+          const { data: child } = await supabase.from('child').select('settings').eq('id', childId).single();
+          const weeklyThreshold = (child?.settings as { weeklyThreshold?: number })?.weeklyThreshold ?? 5;
+          const resume = await creerResumeSiAbsent(childId, nouvelleVue.date, weekStartDay, weeklyThreshold);
+          await genererBilanHebdomadaireSiAbsent(childId, resume.id, weekStartDay, nouvelleVue.date);
+          if (digestTime) await programmerNotificationBilanHebdomadaire(digestTime);
+        }
       } catch {
-        // Le pilotage est une couche secondaire : une erreur ici ne doit
-        // jamais bloquer la clôture, déjà actée localement et côté serveur.
+        // Le pilotage et le bilan sont une couche secondaire : une erreur
+        // ici ne doit jamais bloquer la clôture, déjà actée localement et
+        // côté serveur.
       }
     }
 
@@ -256,6 +284,10 @@ export default function Today() {
 
           <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/pilotage')}>
             <Text style={styles.displayButtonText}>{strings['pilotage.openPilotage']}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/bilan')}>
+            <Text style={styles.displayButtonText}>{strings['bilan.openBilan']}</Text>
           </TouchableOpacity>
 
           {dayView.isClosed ? (
