@@ -122,6 +122,14 @@ export const bilan = {
   'bilan.weekly.rewardUnlocked': 'La récompense de la semaine est débloquée : {rewardLabel}',
   'bilan.weekly.focus': 'Un focus pour la semaine prochaine : « {ruleLabel} ».',
 
+  'bilan.share': 'Partager',
+  'bilan.shareHideName': 'Masquer le prénom',
+  'bilan.shareShowName': 'Afficher le prénom',
+  'bilan.shareAction': 'Partager la carte',
+  'bilan.shareClose': 'Fermer',
+  'bilan.shareUnavailable': 'Le partage n’est pas disponible sur cet appareil.',
+  'bilan.shareError': 'Impossible de générer la carte, réessaie.',
+
   'bilan.notification.title': 'Bilan du soir',
   'bilan.notification.body': 'Le bilan de ce soir est prêt.',
   'bilan.weeklyNotification.title': 'Bilan de la semaine',

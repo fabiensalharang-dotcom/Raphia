@@ -450,10 +450,12 @@ export async function genererBilanHebdomadaireSiAbsent(
 }
 
 export type DailyDigestData = {
+  id: string;
   childName: string;
   date: string;
   heldRuleLabels: string[];
   pointsTotal: number;
+  thresholdApplied: number;
   thresholdMet: boolean;
   templateKey: string;
   templateVariant: number;
@@ -468,7 +470,7 @@ export async function fetchDailyDigest(childId: string, date: string): Promise<D
 
   const { data: dayEntry, error: dayEntryError } = await supabase
     .from('day_entry')
-    .select('id, points_total, threshold_met')
+    .select('id, points_total, threshold_applied, threshold_met')
     .eq('child_id', childId)
     .eq('date', date)
     .maybeSingle();
@@ -497,10 +499,12 @@ export async function fetchDailyDigest(childId: string, date: string): Promise<D
   }
 
   return {
+    id: digest.id,
     childName: child.first_name,
     date,
     heldRuleLabels,
     pointsTotal: dayEntry.points_total,
+    thresholdApplied: dayEntry.threshold_applied,
     thresholdMet: dayEntry.threshold_met,
     templateKey: digest.template_key,
     templateVariant: digest.template_variant,
@@ -508,6 +512,13 @@ export async function fetchDailyDigest(childId: string, date: string): Promise<D
     questionVariant: digest.question_variant,
     slots: (digest.slots as Record<string, unknown>) ?? {},
   };
+}
+
+// §7.12, §7.9 : trace uniquement qu'un partage a eu lieu (horodatage), pas
+// son contenu — cohérent avec « ne jamais stocker le texte rendu ».
+export async function marquerBilanPartage(digestId: string): Promise<void> {
+  const { error } = await supabase.from('daily_digest').update({ shared_at: new Date().toISOString() }).eq('id', digestId);
+  if (error) throw error;
 }
 
 export type WeeklyDigestData = {

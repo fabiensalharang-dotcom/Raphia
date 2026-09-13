@@ -1,13 +1,18 @@
 import { Redirect, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import { captureRef } from 'react-native-view-shot';
 
+import CarteBilanPartage from '../../components/CarteBilanPartage';
 import {
   fetchDailyDigest,
   fetchLatestWeeklyDigest,
+  marquerBilanPartage,
   type DailyDigestData,
   type WeeklyDigestData,
 } from '../../data/repositories/bilanRepository';
+import { fetchDisplayState } from '../../data/repositories/displayStateRepository';
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
@@ -46,7 +51,14 @@ export default function Bilan() {
   const childId = onboarding.status === 'ready' ? onboarding.childId : null;
   const [digest, setDigest] = useState<DailyDigestData | null | undefined>(undefined);
   const [weeklyDigest, setWeeklyDigest] = useState<WeeklyDigestData | null>(null);
+  const [streakDays, setStreakDays] = useState<number | null>(null);
   const [error, setError] = useState(false);
+
+  const [partageOuvert, setPartageOuvert] = useState(false);
+  const [nomMasque, setNomMasque] = useState(false);
+  const [partageEnCours, setPartageEnCours] = useState(false);
+  const [erreurPartage, setErreurPartage] = useState<string | null>(null);
+  const carteRef = useRef<View>(null);
 
   useEffect(() => {
     if (!childId) return;
@@ -68,13 +80,15 @@ export default function Bilan() {
         if (householdRowError || !householdRow) throw householdRowError ?? new Error('household introuvable');
 
         const aujourdHui = dateDuJourDansFuseau(householdRow.timezone);
-        const [dailyResult, weeklyResult] = await Promise.all([
+        const [dailyResult, weeklyResult, displayState] = await Promise.all([
           fetchDailyDigest(childId as string, aujourdHui),
           fetchLatestWeeklyDigest(childId as string),
+          fetchDisplayState(childId as string),
         ]);
         if (cancelled) return;
         setDigest(dailyResult);
         setWeeklyDigest(weeklyResult);
+        setStreakDays(displayState.streak?.days ?? null);
       } catch {
         if (!cancelled) setError(true);
       }
@@ -85,6 +99,26 @@ export default function Bilan() {
       cancelled = true;
     };
   }, [childId]);
+
+  async function partager() {
+    if (!digest) return;
+    setErreurPartage(null);
+    setPartageEnCours(true);
+    try {
+      const disponible = await Sharing.isAvailableAsync();
+      if (!disponible) {
+        setErreurPartage(strings['bilan.shareUnavailable']);
+        return;
+      }
+      const uri = await captureRef(carteRef, { format: 'png', quality: 1 });
+      await Sharing.shareAsync(uri);
+      await marquerBilanPartage(digest.id);
+    } catch {
+      setErreurPartage(strings['bilan.shareError']);
+    } finally {
+      setPartageEnCours(false);
+    }
+  }
 
   if (onboarding.status === 'loading') {
     return <View style={{ flex: 1 }} />;
@@ -135,6 +169,35 @@ export default function Bilan() {
             <Text style={styles.blockTitle}>{strings['bilan.tomorrow']}</Text>
             <Text style={styles.blockBody}>{rendreGabarit(digest.questionKey, digest.questionVariant, digest.slots)}</Text>
           </View>
+
+          {!partageOuvert ? (
+            <TouchableOpacity style={styles.shareButton} onPress={() => setPartageOuvert(true)}>
+              <Text style={styles.shareButtonText}>{strings['bilan.share']}</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.sharePreview}>
+              <CarteBilanPartage
+                ref={carteRef}
+                childFirstName={digest.childName}
+                nomMasque={nomMasque}
+                score={digest.pointsTotal}
+                thresholdApplied={digest.thresholdApplied}
+                streakDays={streakDays}
+              />
+              <TouchableOpacity style={styles.shareToggle} onPress={() => setNomMasque((v) => !v)}>
+                <Text style={styles.shareToggleText}>
+                  {nomMasque ? strings['bilan.shareShowName'] : strings['bilan.shareHideName']}
+                </Text>
+              </TouchableOpacity>
+              {erreurPartage ? <Text style={styles.error}>{erreurPartage}</Text> : null}
+              <TouchableOpacity style={styles.shareButton} onPress={partager} disabled={partageEnCours}>
+                <Text style={styles.shareButtonText}>{strings['bilan.shareAction']}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setPartageOuvert(false)}>
+                <Text style={styles.shareCloseText}>{strings['bilan.shareClose']}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
@@ -229,5 +292,37 @@ const styles = StyleSheet.create({
   blockBody: {
     fontSize: 15,
     color: '#222',
+  },
+  shareButton: {
+    backgroundColor: '#208AEF',
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  shareButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  sharePreview: {
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
+  },
+  shareToggle: {
+    borderWidth: 1,
+    borderColor: '#208AEF',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  shareToggleText: {
+    color: '#208AEF',
+    fontWeight: '600',
+  },
+  shareCloseText: {
+    color: '#888',
+    textAlign: 'center',
+    marginTop: 4,
   },
 });
