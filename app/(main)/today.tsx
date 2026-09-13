@@ -2,7 +2,7 @@ import { Redirect, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { estDernierJourDeLaSemaine, estJourModifiable } from '../../core/scoring';
+import { estJourModifiable } from '../../core/scoring';
 import type { EtatRegle } from '../../core/scoring/types';
 import {
   cloturerJournee,
@@ -12,16 +12,10 @@ import {
   type DayEntryView,
 } from '../../data/repositories/dayEntryRepository';
 import {
-  attribuerRecompense,
-  fetchAvailableRewards,
-  fetchGrantForDayEntry,
   fetchRecompensesEnAttente,
   marquerConsommee,
-  type GrantedReward,
   type PendingRewardGrant,
-  type RewardInstanceOption,
 } from '../../data/repositories/rewardGrantRepository';
-import { creerResumeSiAbsent } from '../../data/repositories/weekSummaryRepository';
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
@@ -57,17 +51,10 @@ function suivantEtat(etatActuel: EtatRegle): EtatRegle {
 export default function Today() {
   const onboarding = useOnboardingState();
   const [timezone, setTimezone] = useState<string | null>(null);
-  const [weekStartDay, setWeekStartDay] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [dayView, setDayView] = useState<DayEntryView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [dailyGrant, setDailyGrant] = useState<GrantedReward | null>(null);
-  const [dailyOptions, setDailyOptions] = useState<RewardInstanceOption[] | null>(null);
-  const [weeklyGrant, setWeeklyGrant] = useState<GrantedReward | null>(null);
-  const [weeklyOptions, setWeeklyOptions] = useState<RewardInstanceOption[] | null>(null);
-  const [weekSummaryId, setWeekSummaryId] = useState<string | null>(null);
   const [pendingRewards, setPendingRewards] = useState<PendingRewardGrant[]>([]);
 
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
@@ -80,7 +67,7 @@ export default function Today() {
     async function initialiser() {
       const { data: household, error: householdError } = await supabase
         .from('household')
-        .select('timezone, week_start_day')
+        .select('timezone')
         .eq('id', householdId as string)
         .single();
       if (cancelled) return;
@@ -89,7 +76,6 @@ export default function Today() {
         return;
       }
       setTimezone(household.timezone);
-      setWeekStartDay(household.week_start_day);
       setSelectedDate(dateDuJourDansFuseau(household.timezone));
     }
 
@@ -136,77 +122,6 @@ export default function Today() {
   }, [childId, timezone, selectedDate]);
 
   useEffect(() => {
-    if (!dayView || !childId || weekStartDay === null) {
-      setDailyGrant(null);
-      setDailyOptions(null);
-      setWeeklyGrant(null);
-      setWeeklyOptions(null);
-      setWeekSummaryId(null);
-      return;
-    }
-    let cancelled = false;
-
-    async function chargerRecompenses() {
-      const vue = dayView as DayEntryView;
-
-      if (vue.thresholdMet) {
-        const grant = await fetchGrantForDayEntry(vue.dayEntryId, 'daily');
-        if (cancelled) return;
-        if (grant) {
-          setDailyGrant(grant);
-          setDailyOptions(null);
-        } else {
-          setDailyGrant(null);
-          const options = await fetchAvailableRewards(childId as string, 'daily');
-          if (!cancelled) setDailyOptions(options);
-        }
-      } else {
-        setDailyGrant(null);
-        setDailyOptions(null);
-      }
-
-      // §5.3 : la récompense hebdomadaire se déclenche à la clôture du
-      // dernier jour de la semaine. Le résumé de la semaine est créé et
-      // figé au premier passage (§4.3, garde-fou #6), puis relu tel quel
-      // aux passages suivants — jamais recalculé.
-      if (vue.isClosed && estDernierJourDeLaSemaine(vue.date, weekStartDay as number)) {
-        const { data: child } = await supabase
-          .from('child')
-          .select('settings')
-          .eq('id', childId as string)
-          .single();
-        if (cancelled) return;
-        const weeklyThreshold = (child?.settings as { weeklyThreshold?: number })?.weeklyThreshold ?? 5;
-        const resume = await creerResumeSiAbsent(childId as string, vue.date, weekStartDay as number, weeklyThreshold);
-        if (cancelled) return;
-        setWeekSummaryId(resume.id);
-
-        if (resume.weeklyThresholdMet) {
-          const grant = await fetchGrantForDayEntry(vue.dayEntryId, 'weekly');
-          if (cancelled) return;
-          if (grant) {
-            setWeeklyGrant(grant);
-            setWeeklyOptions(null);
-          } else {
-            setWeeklyGrant(null);
-            const options = await fetchAvailableRewards(childId as string, 'weekly');
-            if (!cancelled) setWeeklyOptions(options);
-          }
-          return;
-        }
-      }
-      setWeeklyGrant(null);
-      setWeeklyOptions(null);
-      setWeekSummaryId(null);
-    }
-
-    chargerRecompenses();
-    return () => {
-      cancelled = true;
-    };
-  }, [dayView, childId, weekStartDay]);
-
-  useEffect(() => {
     rafraichirRecompensesEnAttente();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [childId]);
@@ -250,24 +165,9 @@ export default function Today() {
     if (!dayView || !modifiable) return;
     const nouvelleVue = await cloturerJournee(dayView);
     setDayView(nouvelleVue);
-  }
-
-  async function choisirRecompenseQuotidienne(rewardInstanceId: string) {
-    if (!dayView || !childId) return;
-    await attribuerRecompense(childId, dayView.dayEntryId, rewardInstanceId, 'daily');
-    const grant = await fetchGrantForDayEntry(dayView.dayEntryId, 'daily');
-    setDailyGrant(grant);
-    setDailyOptions(null);
-    rafraichirRecompensesEnAttente();
-  }
-
-  async function choisirRecompenseHebdomadaire(rewardInstanceId: string) {
-    if (!dayView || !childId) return;
-    await attribuerRecompense(childId, dayView.dayEntryId, rewardInstanceId, 'weekly', weekSummaryId ?? undefined);
-    const grant = await fetchGrantForDayEntry(dayView.dayEntryId, 'weekly');
-    setWeeklyGrant(grant);
-    setWeeklyOptions(null);
-    rafraichirRecompensesEnAttente();
+    // §7.2 : la séquence enfant se joue en Mode Affichage, déclenchée par
+    // la clôture de la journée.
+    if (childId) router.push(`/display/${childId}`);
   }
 
   async function consommer(grantId: string) {
@@ -327,48 +227,6 @@ export default function Today() {
               </Text>
             </TouchableOpacity>
           ))}
-
-          {dailyGrant && (
-            <View style={styles.rewardChosen}>
-              <Text style={styles.rewardChosenTitle}>{strings['today.dailyRewardChosen']}</Text>
-              <Text style={styles.rewardChosenLabel}>{dailyGrant.label}</Text>
-            </View>
-          )}
-          {!dailyGrant && dailyOptions && dailyOptions.length > 0 && (
-            <View style={styles.rewardChoice}>
-              <Text style={styles.rewardChoiceTitle}>{strings['today.chooseDailyReward']}</Text>
-              {dailyOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={styles.rewardOption}
-                  onPress={() => choisirRecompenseQuotidienne(option.id)}
-                >
-                  <Text style={styles.rewardOptionLabel}>{option.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {weeklyGrant && (
-            <View style={styles.rewardChosen}>
-              <Text style={styles.rewardChosenTitle}>{strings['today.weeklyRewardChosen']}</Text>
-              <Text style={styles.rewardChosenLabel}>{weeklyGrant.label}</Text>
-            </View>
-          )}
-          {!weeklyGrant && weeklyOptions && weeklyOptions.length > 0 && (
-            <View style={styles.rewardChoice}>
-              <Text style={styles.rewardChoiceTitle}>{strings['today.chooseWeeklyReward']}</Text>
-              {weeklyOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={styles.rewardOption}
-                  onPress={() => choisirRecompenseHebdomadaire(option.id)}
-                >
-                  <Text style={styles.rewardOptionLabel}>{option.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
 
           <TouchableOpacity
             style={styles.displayButton}
@@ -478,39 +336,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#208AEF',
     marginBottom: 4,
-  },
-  rewardChosen: {
-    borderWidth: 1,
-    borderColor: '#4ADE80',
-    backgroundColor: '#F0FDF4',
-    borderRadius: 8,
-    padding: 14,
-  },
-  rewardChosenTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#16A34A',
-    marginBottom: 4,
-  },
-  rewardChosenLabel: {
-    fontSize: 16,
-  },
-  rewardChoice: {
-    gap: 8,
-  },
-  rewardChoiceTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  rewardOption: {
-    borderWidth: 1,
-    borderColor: '#208AEF',
-    borderRadius: 8,
-    padding: 12,
-  },
-  rewardOptionLabel: {
-    fontSize: 16,
-    color: '#208AEF',
   },
   displayButton: {
     borderWidth: 1,

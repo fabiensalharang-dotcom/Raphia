@@ -10,4 +10,6 @@ export { calculerTauxReussiteParRegle } from './calculerTauxReussiteParRegle';
 export type { CochageRegle, TauxReussiteRegle } from './calculerTauxReussiteParRegle';
 export { calculerSeuilsAtteintsParSemaine } from './calculerSeuilsAtteintsParSemaine';
 export type { JourPourSemaine, SeuilsSemaine } from './calculerSeuilsAtteintsParSemaine';
+export { calculerSerieEnCours } from './calculerSerieEnCours';
+export type { JourDeSerie } from './calculerSerieEnCours';
 export type { EtatRegle, StatutRegle, PointageRegle, JourSemaine } from './types';

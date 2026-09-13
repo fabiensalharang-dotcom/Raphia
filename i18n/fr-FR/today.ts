@@ -7,10 +7,6 @@ export const today = {
   'today.thresholdReached': 'Seuil atteint',
   'today.error': 'Une erreur est survenue, réessaie.',
   'today.signOut': 'Se déconnecter',
-  'today.chooseDailyReward': 'Choisis ta récompense du jour',
-  'today.chooseWeeklyReward': 'Choisis ta récompense de la semaine',
-  'today.dailyRewardChosen': 'Récompense du jour',
-  'today.weeklyRewardChosen': 'Récompense de la semaine',
   'today.pendingRewardsTitle': 'À consommer',
   'today.markConsumed': 'Marquer consommée',
 };
