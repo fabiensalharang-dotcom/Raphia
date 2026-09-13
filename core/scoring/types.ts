@@ -13,4 +13,5 @@ export type PointageRegle = {
 
 export type JourSemaine = {
   thresholdMet: boolean;
+  pointsTotal: number;
 };
