@@ -46,11 +46,16 @@ export async function attribuerRecompense(
   childId: string,
   dayEntryId: string,
   rewardInstanceId: string,
-  tier: RewardTier
+  tier: RewardTier,
+  weekSummaryId?: string
 ): Promise<void> {
-  const { error: grantError } = await supabase
-    .from('reward_grant')
-    .insert({ child_id: childId, day_entry_id: dayEntryId, reward_instance_id: rewardInstanceId, tier });
+  const { error: grantError } = await supabase.from('reward_grant').insert({
+    child_id: childId,
+    day_entry_id: dayEntryId,
+    reward_instance_id: rewardInstanceId,
+    tier,
+    week_summary_id: weekSummaryId ?? null,
+  });
   if (grantError) throw grantError;
 
   const { error: updateError } = await supabase

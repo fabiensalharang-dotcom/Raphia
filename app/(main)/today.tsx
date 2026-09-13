@@ -2,12 +2,11 @@ import { Redirect, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { calculerCumulHebdomadaire, datesDeLaSemaine, estDernierJourDeLaSemaine, estJourModifiable } from '../../core/scoring';
+import { estDernierJourDeLaSemaine, estJourModifiable } from '../../core/scoring';
 import type { EtatRegle } from '../../core/scoring/types';
 import {
   cloturerJournee,
   fetchDayEntry,
-  fetchThresholdsForDates,
   getOrCreateDayEntry,
   mettreAJourCochage,
   type DayEntryView,
@@ -22,6 +21,7 @@ import {
   type PendingRewardGrant,
   type RewardInstanceOption,
 } from '../../data/repositories/rewardGrantRepository';
+import { creerResumeSiAbsent } from '../../data/repositories/weekSummaryRepository';
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
@@ -67,6 +67,7 @@ export default function Today() {
   const [dailyOptions, setDailyOptions] = useState<RewardInstanceOption[] | null>(null);
   const [weeklyGrant, setWeeklyGrant] = useState<GrantedReward | null>(null);
   const [weeklyOptions, setWeeklyOptions] = useState<RewardInstanceOption[] | null>(null);
+  const [weekSummaryId, setWeekSummaryId] = useState<string | null>(null);
   const [pendingRewards, setPendingRewards] = useState<PendingRewardGrant[]>([]);
 
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
@@ -140,6 +141,7 @@ export default function Today() {
       setDailyOptions(null);
       setWeeklyGrant(null);
       setWeeklyOptions(null);
+      setWeekSummaryId(null);
       return;
     }
     let cancelled = false;
@@ -164,8 +166,9 @@ export default function Today() {
       }
 
       // §5.3 : la récompense hebdomadaire se déclenche à la clôture du
-      // dernier jour de la semaine — calculé directement depuis day_entry,
-      // sans passer par week_summary (lot L7).
+      // dernier jour de la semaine. Le résumé de la semaine est créé et
+      // figé au premier passage (§4.3, garde-fou #6), puis relu tel quel
+      // aux passages suivants — jamais recalculé.
       if (vue.isClosed && estDernierJourDeLaSemaine(vue.date, weekStartDay as number)) {
         const { data: child } = await supabase
           .from('child')
@@ -174,12 +177,11 @@ export default function Today() {
           .single();
         if (cancelled) return;
         const weeklyThreshold = (child?.settings as { weeklyThreshold?: number })?.weeklyThreshold ?? 5;
-        const dates = datesDeLaSemaine(vue.date, weekStartDay as number);
-        const jours = await fetchThresholdsForDates(childId as string, dates);
+        const resume = await creerResumeSiAbsent(childId as string, vue.date, weekStartDay as number, weeklyThreshold);
         if (cancelled) return;
-        const cumul = calculerCumulHebdomadaire(jours, weeklyThreshold);
+        setWeekSummaryId(resume.id);
 
-        if (cumul.weeklyThresholdMet) {
+        if (resume.weeklyThresholdMet) {
           const grant = await fetchGrantForDayEntry(vue.dayEntryId, 'weekly');
           if (cancelled) return;
           if (grant) {
@@ -195,6 +197,7 @@ export default function Today() {
       }
       setWeeklyGrant(null);
       setWeeklyOptions(null);
+      setWeekSummaryId(null);
     }
 
     chargerRecompenses();
@@ -260,7 +263,7 @@ export default function Today() {
 
   async function choisirRecompenseHebdomadaire(rewardInstanceId: string) {
     if (!dayView || !childId) return;
-    await attribuerRecompense(childId, dayView.dayEntryId, rewardInstanceId, 'weekly');
+    await attribuerRecompense(childId, dayView.dayEntryId, rewardInstanceId, 'weekly', weekSummaryId ?? undefined);
     const grant = await fetchGrantForDayEntry(dayView.dayEntryId, 'weekly');
     setWeeklyGrant(grant);
     setWeeklyOptions(null);
