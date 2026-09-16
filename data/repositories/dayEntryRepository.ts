@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { estJourDeControle } from '../../core/pilotage';
+import type { RuleCategory } from '../../core/referential/types';
 import { calculerScoreJournalier, verifierSeuilAtteint } from '../../core/scoring';
 import type { EtatRegle, PointageRegle, StatutRegle } from '../../core/scoring/types';
 import { supabase } from '../supabaseClient';
@@ -10,6 +11,7 @@ export type RuleCheckView = {
   label: string;
   shortLabel: string;
   icon: string;
+  category: RuleCategory;
   points: number;
   isThematic: boolean;
   bonusValue: number;
@@ -74,7 +76,7 @@ async function chargerDepuisServeur(
 ): Promise<DayEntryView> {
   const { data: reglesActives, error: reglesError } = await supabase
     .from('rule_instance')
-    .select('id, label, short_label, icon, points, is_thematic, bonus_value, status')
+    .select('id, label, short_label, icon, category, points, is_thematic, bonus_value, status')
     .eq('child_id', childId)
     .eq('status', 'active');
   if (reglesError) throw reglesError;
@@ -85,7 +87,7 @@ async function chargerDepuisServeur(
   // différent de « active »).
   const { data: reglesAcquises, error: acquisesError } = await supabase
     .from('rule_instance')
-    .select('id, label, short_label, icon, points, is_thematic, bonus_value, status, acquired_at')
+    .select('id, label, short_label, icon, category, points, is_thematic, bonus_value, status, acquired_at')
     .eq('child_id', childId)
     .eq('status', 'acquired')
     .not('acquired_at', 'is', null);
@@ -136,6 +138,7 @@ async function chargerDepuisServeur(
       label: r.label,
       shortLabel: r.short_label,
       icon: r.icon,
+      category: r.category as RuleCategory,
       points: r.points,
       isThematic: r.is_thematic,
       bonusValue: r.bonus_value,
@@ -201,7 +204,7 @@ export async function fetchDayEntry(childId: string, date: string): Promise<DayE
     await Promise.all([
       supabase
         .from('rule_instance')
-        .select('id, label, short_label, icon, points, is_thematic, bonus_value, status')
+        .select('id, label, short_label, icon, category, points, is_thematic, bonus_value, status')
         .eq('child_id', childId),
       supabase.from('rule_check').select('rule_instance_id, state').eq('day_entry_id', dayEntry.id),
     ]);
@@ -218,6 +221,7 @@ export async function fetchDayEntry(childId: string, date: string): Promise<DayE
       label: r.label,
       shortLabel: r.short_label,
       icon: r.icon,
+      category: r.category as RuleCategory,
       points: r.points,
       isThematic: r.is_thematic,
       bonusValue: r.bonus_value,

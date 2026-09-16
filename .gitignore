@@ -47,5 +47,8 @@ yarn-error.*
 # archive d'upload redondante avec docs/conception.md, CLAUDE.md, demarrage-developpement.md
 files.zip
 
+# fichiers de travail temporaires (maquettes, brouillons) — pas le produit
+/scratch
+
 # fichiers verrous Microsoft Office
 ~$*

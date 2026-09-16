@@ -10,4 +10,25 @@ export const today = {
   'today.signOut': 'Se déconnecter',
   'today.pendingRewardsTitle': 'À consommer',
   'today.markConsumed': 'Marquer consommée',
+
+  'today.greetingPrefix': 'Bonjour',
+  'today.mascotGreeting': 'Pousse est content de te voir',
+  'today.rulesSectionTitle': 'Tes règles aujourd’hui',
+  'today.pointsSuffixLabel': 'points aujourd’hui',
+  'today.startRitual': 'Lancer le rituel du soir',
+  'today.startRitualSubtitle': '~90 secondes, avec Pousse',
+
+  'nav.today': "Aujourd'hui",
+  'nav.progress': 'Progrès',
+  'nav.pilotage': 'Idées',
+  'nav.bilan': 'Bilan',
+  'nav.parametres': 'Réglages',
+
+  'category.autonomie': 'Autonomie',
+  'category.securite': 'Sécurité',
+  'category.social': 'Social',
+  'category.scolaire': 'Scolaire',
+  'category.ecrans': 'Écrans',
+  'category.emotions': 'Émotions',
+  'category.organisation': 'Organisation',
 };

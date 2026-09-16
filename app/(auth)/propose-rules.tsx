@@ -17,6 +17,7 @@ type Slot = {
   label: string;
   shortLabel: string;
   icon: string;
+  category: RuleTemplate['category'];
   points: number;
   isThematic: boolean;
 };
@@ -27,6 +28,7 @@ function slotFromTemplate(template: RuleTemplate, isThematic: boolean): Slot {
     label: template.label,
     shortLabel: template.shortLabel,
     icon: template.icon,
+    category: template.category,
     points: template.defaultPoints,
     isThematic,
   };
@@ -123,6 +125,7 @@ export default function ProposeRules() {
         label: slot.label,
         short_label: slot.shortLabel,
         icon: slot.icon,
+        category: slot.category,
         points: slot.points,
         is_thematic: slot.isThematic,
         display_order: index,

@@ -1,7 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Redirect, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import Pousse from '../../components/Pousse';
+import type { RuleCategory } from '../../core/referential/types';
 import { genererBilanDuJour, genererBilanHebdomadaireSiAbsent } from '../../data/repositories/bilanRepository';
 import { estDernierJourDeLaSemaine, estJourModifiable } from '../../core/scoring';
 import type { EtatRegle } from '../../core/scoring/types';
@@ -11,6 +14,7 @@ import {
   getOrCreateDayEntry,
   mettreAJourCochage,
   type DayEntryView,
+  type RuleCheckView,
 } from '../../data/repositories/dayEntryRepository';
 import { evaluerEtCreerSuggestion, verifierControlesPonctuels } from '../../data/repositories/pilotageRepository';
 import {
@@ -29,6 +33,18 @@ import {
 import { enregistrerEvenement } from '../../data/telemetry';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
+import { colors, couleurCategorie } from '../../theme/colors';
+import { fonts } from '../../theme/typography';
+
+const ICONE_PAR_CATEGORIE: Record<RuleCategory, keyof typeof Ionicons.glyphMap> = {
+  autonomie: 'walk-outline',
+  securite: 'shield-checkmark-outline',
+  social: 'chatbubbles-outline',
+  scolaire: 'book-outline',
+  ecrans: 'tablet-portrait-outline',
+  emotions: 'heart-outline',
+  organisation: 'list-outline',
+};
 
 function dateDuJourDansFuseau(timezone: string): string {
   const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -68,6 +84,7 @@ export default function Today() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingRewards, setPendingRewards] = useState<PendingRewardGrant[]>([]);
+  const [childFirstName, setChildFirstName] = useState<string>('');
 
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
   const childId = onboarding.status === 'ready' ? onboarding.childId : null;
@@ -98,6 +115,22 @@ export default function Today() {
       cancelled = true;
     };
   }, [householdId]);
+
+  useEffect(() => {
+    if (!childId) return;
+    let cancelled = false;
+    supabase
+      .from('child')
+      .select('first_name')
+      .eq('id', childId)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled && data) setChildFirstName(data.first_name);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [childId]);
 
   useEffect(() => {
     if (!childId || !timezone || !selectedDate) return;
@@ -150,7 +183,7 @@ export default function Today() {
   }
 
   if (onboarding.status === 'loading') {
-    return <View style={{ flex: 1 }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
   if (onboarding.status !== 'ready') {
     return <Redirect href="/" />;
@@ -220,17 +253,33 @@ export default function Today() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.dateRow}>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          <Pousse size={46} />
+          <View>
+            <Text style={styles.greeting}>
+              {strings['today.greetingPrefix']} {childFirstName} !
+            </Text>
+            <Text style={styles.mascotLine}>{strings['today.mascotGreeting']}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.datePill}>
         <TouchableOpacity onPress={() => selectedDate && setSelectedDate(ajouterJours(selectedDate, -1))}>
-          <Text style={styles.dateArrow}>‹</Text>
+          <Ionicons name="chevron-back" size={16} color={colors.inkMuted} />
         </TouchableOpacity>
-        <Text style={styles.date}>{selectedDate ? formaterDate(selectedDate) : ''}</Text>
+        <Text style={styles.dateText}>{selectedDate ? formaterDate(selectedDate) : ''}</Text>
         <TouchableOpacity
           onPress={() => selectedDate && setSelectedDate(ajouterJours(selectedDate, 1))}
           disabled={!peutAllerAuJourSuivant}
         >
-          <Text style={[styles.dateArrow, !peutAllerAuJourSuivant && styles.dateArrowDisabled]}>›</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color={peutAllerAuJourSuivant ? colors.inkMuted : colors.border}
+          />
         </TouchableOpacity>
       </View>
 
@@ -240,70 +289,50 @@ export default function Today() {
 
       {dayView && (
         <>
-          <Text style={styles.points}>{dayView.pointsTotal}</Text>
-
-          <View style={styles.gaugeTrack}>
-            <View
-              style={[
-                styles.gaugeFill,
-                { width: `${Math.min(100, (dayView.pointsTotal / Math.max(1, dayView.thresholdApplied)) * 100)}%` },
-              ]}
-            />
-          </View>
-          {dayView.thresholdMet ? <Text style={styles.thresholdMet}>{strings['today.thresholdReached']}</Text> : null}
-
-          {dayView.checks.map((check) => (
-            <TouchableOpacity
-              key={check.ruleInstanceId}
-              style={[styles.rule, check.etat === 'respected' && styles.ruleRespected]}
-              onPress={() => basculer(check.ruleInstanceId, check.etat)}
-              onLongPress={() => basculerNonApplicable(check.ruleInstanceId, check.etat)}
-              disabled={!modifiable}
-            >
-              {check.isThematic && <Text style={styles.badge}>{strings['today.thematicBadge']}</Text>}
-              {check.status === 'acquired' && <Text style={styles.badge}>{strings['today.monthlyCheckBadge']}</Text>}
-              <Text
-                style={[
-                  styles.ruleLabel,
-                  check.etat === 'not_applicable' && styles.ruleNotApplicable,
-                ]}
-              >
-                {check.label}
+          <View style={styles.scoreCard}>
+            <View style={styles.scoreRow}>
+              <Text style={styles.scoreNumber}>{dayView.pointsTotal}</Text>
+              <Text style={styles.scoreSuffix}>
+                / {dayView.thresholdApplied} {strings['today.pointsSuffixLabel']}
               </Text>
-            </TouchableOpacity>
-          ))}
+            </View>
+            <View style={styles.gaugeTrack}>
+              <View
+                style={[
+                  styles.gaugeFill,
+                  { width: `${Math.min(100, (dayView.pointsTotal / Math.max(1, dayView.thresholdApplied)) * 100)}%` },
+                ]}
+              />
+            </View>
+            {dayView.thresholdMet ? <Text style={styles.thresholdMet}>{strings['today.thresholdReached']}</Text> : null}
+          </View>
 
-          <TouchableOpacity
-            style={styles.displayButton}
-            onPress={() => childId && router.push(`/display/${childId}`)}
-          >
-            <Text style={styles.displayButtonText}>{strings['today.switchToDisplay']}</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>{strings['today.rulesSectionTitle']}</Text>
 
-          <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/progress')}>
-            <Text style={styles.displayButtonText}>{strings['progress.openProgress']}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/pilotage')}>
-            <Text style={styles.displayButtonText}>{strings['pilotage.openPilotage']}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/bilan')}>
-            <Text style={styles.displayButtonText}>{strings['bilan.openBilan']}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.displayButton} onPress={() => router.push('/parametres')}>
-            <Text style={styles.displayButtonText}>{strings['parametres.openParametres']}</Text>
-          </TouchableOpacity>
+          <View style={styles.tileGrid}>
+            {dayView.checks.map((check) => (
+              <RuleTile
+                key={check.ruleInstanceId}
+                check={check}
+                modifiable={modifiable}
+                onPress={() => basculer(check.ruleInstanceId, check.etat)}
+                onLongPress={() => basculerNonApplicable(check.ruleInstanceId, check.etat)}
+              />
+            ))}
+          </View>
 
           {dayView.isClosed ? (
             <Text style={styles.closed}>{strings['today.dayClosed']}</Text>
           ) : !modifiable ? (
             <Text style={styles.closed}>{strings['today.dayFrozen']}</Text>
           ) : (
-            <TouchableOpacity style={styles.closeButton} onPress={cloturer}>
-              <Text style={styles.closeButtonText}>{strings['today.closeDay']}</Text>
-            </TouchableOpacity>
+            <View style={styles.ctaWrap}>
+              <TouchableOpacity style={styles.ctaButton} onPress={cloturer}>
+                <Ionicons name="play" size={17} color="#fff" />
+                <Text style={styles.ctaLabel}>{strings['today.startRitual']}</Text>
+              </TouchableOpacity>
+              <Text style={styles.ctaSubtitle}>{strings['today.startRitualSubtitle']}</Text>
+            </View>
           )}
         </>
       )}
@@ -321,127 +350,274 @@ export default function Today() {
           ))}
         </View>
       )}
-
-      <TouchableOpacity onPress={() => supabase.auth.signOut()}>
-        <Text style={styles.signOut}>{strings['today.signOut']}</Text>
-      </TouchableOpacity>
     </ScrollView>
+  );
+}
+
+type RuleTileProps = {
+  check: RuleCheckView;
+  modifiable: boolean;
+  onPress: () => void;
+  onLongPress: () => void;
+};
+
+function RuleTile({ check, modifiable, onPress, onLongPress }: RuleTileProps) {
+  const fond = couleurCategorie(check.category);
+  const nonApplicable = check.etat === 'not_applicable';
+  const coche = check.etat === 'respected';
+
+  return (
+    <TouchableOpacity
+      style={[styles.tile, { backgroundColor: fond }, nonApplicable && styles.tileNonApplicable]}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      disabled={!modifiable}
+    >
+      <Ionicons
+        name={ICONE_PAR_CATEGORIE[check.category] ?? 'list-outline'}
+        size={64}
+        color="#fff"
+        style={styles.tileIcon}
+      />
+      <Text style={styles.tileCategory}>{strings[`category.${check.category}`] ?? strings['category.organisation']}</Text>
+      {(check.isThematic || check.status === 'acquired') && (
+        <Text style={styles.tileBadge}>
+          {check.isThematic ? strings['today.thematicBadge'] : strings['today.monthlyCheckBadge']}
+        </Text>
+      )}
+      <Text style={styles.tileLabel} numberOfLines={2}>
+        {check.label}
+      </Text>
+      <View style={[styles.tileCheck, coche && styles.tileCheckOn]}>
+        {coche ? <Ionicons name="checkmark" size={12} color={fond} /> : null}
+      </View>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
-    gap: 12,
+    paddingBottom: 32,
   },
-  dateRow: {
+  header: {
+    backgroundColor: colors.accent,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    paddingTop: 20,
+    paddingBottom: 24,
+    paddingHorizontal: 22,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  greeting: {
+    fontFamily: fonts.cursive,
+    fontSize: 26,
+    color: '#fff',
+    lineHeight: 28,
+  },
+  mascotLine: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: '#fff',
+    marginTop: 2,
+  },
+  datePill: {
+    marginTop: -24,
+    marginHorizontal: 22,
+    backgroundColor: colors.surface,
+    borderRadius: 100,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    shadowColor: colors.ink,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
-  dateArrow: {
-    fontSize: 28,
-    paddingHorizontal: 16,
-  },
-  dateArrowDisabled: {
-    opacity: 0.3,
-  },
-  date: {
-    fontSize: 16,
-    fontWeight: '600',
+  dateText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.ink,
     textTransform: 'capitalize',
   },
-  points: {
-    fontSize: 64,
-    fontWeight: '700',
-    textAlign: 'center',
+  scoreCard: {
+    marginTop: 14,
+    marginHorizontal: 22,
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 18,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  scoreRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  scoreNumber: {
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 46,
+    color: colors.accent,
+    lineHeight: 48,
+  },
+  scoreSuffix: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    color: colors.inkMuted,
   },
   gaugeTrack: {
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#eee',
+    height: 14,
+    borderRadius: 100,
+    backgroundColor: colors.background,
     overflow: 'hidden',
+    marginTop: 10,
   },
   gaugeFill: {
     height: '100%',
-    backgroundColor: '#208AEF',
+    borderRadius: 100,
+    backgroundColor: colors.accent,
   },
   thresholdMet: {
-    textAlign: 'center',
-    color: '#208AEF',
-    fontWeight: '600',
-  },
-  rule: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 14,
-  },
-  ruleRespected: {
-    borderColor: '#208AEF',
-    backgroundColor: '#EAF4FF',
-  },
-  ruleLabel: {
-    fontSize: 16,
-  },
-  ruleNotApplicable: {
-    color: '#999',
-    fontStyle: 'italic',
-  },
-  badge: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#208AEF',
-    marginBottom: 4,
-  },
-  displayButton: {
-    borderWidth: 1,
-    borderColor: '#208AEF',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
     marginTop: 8,
+    fontFamily: fonts.bodyBold,
+    color: colors.accent,
   },
-  displayButtonText: {
-    color: '#208AEF',
-    fontWeight: '600',
+  sectionTitle: {
+    fontFamily: fonts.cursive,
+    fontSize: 19,
+    color: colors.ink,
+    marginTop: 18,
+    marginBottom: 8,
+    marginHorizontal: 22,
   },
-  closeButton: {
-    backgroundColor: '#208AEF',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 8,
+  tileGrid: {
+    marginHorizontal: 22,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  closeButtonText: {
+  tile: {
+    position: 'relative',
+    width: '47%',
+    height: 100,
+    borderRadius: 20,
+    padding: 12,
+    overflow: 'hidden',
+  },
+  tileNonApplicable: {
+    opacity: 0.45,
+  },
+  tileIcon: {
+    position: 'absolute',
+    right: -8,
+    bottom: -8,
+    opacity: 0.28,
+  },
+  tileCategory: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  tileBadge: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 10,
     color: '#fff',
-    fontWeight: '600',
+    marginTop: 2,
+  },
+  tileLabel: {
+    position: 'absolute',
+    left: 12,
+    right: 34,
+    bottom: 10,
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: '#fff',
+    lineHeight: 17,
+  },
+  tileCheck: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileCheckOn: {
+    backgroundColor: '#fff',
+    borderColor: '#fff',
+  },
+  ctaWrap: {
+    marginTop: 18,
+    marginHorizontal: 22,
+    alignItems: 'center',
+  },
+  ctaButton: {
+    backgroundColor: colors.accent,
+    borderRadius: 100,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  ctaLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    color: '#fff',
+  },
+  ctaSubtitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
+    color: colors.inkMuted,
+    marginTop: 6,
   },
   closed: {
     textAlign: 'center',
-    color: '#444',
-    marginTop: 8,
+    color: colors.inkMuted,
+    fontFamily: fonts.bodySemiBold,
+    marginTop: 18,
   },
   empty: {
     textAlign: 'center',
-    color: '#444',
+    color: colors.inkMuted,
+    fontFamily: fonts.bodySemiBold,
     marginTop: 40,
   },
   error: {
-    color: '#B00020',
+    color: colors.danger,
     textAlign: 'center',
+    marginHorizontal: 22,
+    marginTop: 12,
+    fontFamily: fonts.bodySemiBold,
   },
   pendingSection: {
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: colors.border,
     paddingTop: 12,
-    marginTop: 16,
+    marginTop: 20,
+    marginHorizontal: 22,
     gap: 8,
   },
   pendingTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#444',
+    fontFamily: fonts.bodyBold,
+    color: colors.inkMuted,
   },
   pendingRow: {
     flexDirection: 'row',
@@ -450,13 +626,11 @@ const styles = StyleSheet.create({
   },
   pendingLabel: {
     fontSize: 16,
+    fontFamily: fonts.bodyMedium,
+    color: colors.ink,
   },
   pendingAction: {
-    color: '#208AEF',
-  },
-  signOut: {
-    color: '#208AEF',
-    textAlign: 'center',
-    marginTop: 24,
+    color: colors.accent,
+    fontFamily: fonts.bodyBold,
   },
 });

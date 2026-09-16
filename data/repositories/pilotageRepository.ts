@@ -323,6 +323,7 @@ async function inserterNouvelleRegle(childId: string, template: RuleTemplate): P
     label: template.label,
     short_label: template.shortLabel,
     icon: template.icon,
+    category: template.category,
     points: template.defaultPoints,
     is_thematic: false,
     status: 'active',

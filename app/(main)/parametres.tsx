@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { exporterDonneesFoyer, supprimerCompte } from '../../data/repositories/accountRepository';
+import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
 
@@ -107,6 +108,10 @@ export default function Parametres() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity onPress={() => supabase.auth.signOut()}>
+        <Text style={styles.signOut}>{strings['today.signOut']}</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -173,5 +178,10 @@ const styles = StyleSheet.create({
   actionDangerLabel: {
     color: '#B00020',
     fontWeight: '600',
+  },
+  signOut: {
+    color: '#208AEF',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
