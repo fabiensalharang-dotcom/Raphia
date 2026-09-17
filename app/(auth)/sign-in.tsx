@@ -1,11 +1,14 @@
 import { Link, Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { supabase } from '../../data/supabaseClient';
 import { useSession } from '../../data/useSession';
 import { strings } from '../../i18n/fr-FR';
 import { authErrorMessage } from '../../components/authErrors';
+import ScreenHeader from '../../components/ScreenHeader';
+import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/typography';
 
 export default function SignIn() {
   const { session } = useSession();
@@ -31,73 +34,89 @@ export default function SignIn() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{strings['auth.signIn.title']}</Text>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+      <ScreenHeader title={strings['auth.signIn.title']} />
 
-      <TextInput
-        style={styles.input}
-        placeholder={strings['auth.field.email']}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder={strings['auth.field.password']}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+      <View style={styles.body}>
+        <View style={styles.card}>
+          <TextInput
+            style={styles.input}
+            placeholder={strings['auth.field.email']}
+            placeholderTextColor={colors.inkMuted}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder={strings['auth.field.password']}
+            placeholderTextColor={colors.inkMuted}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={submitting}>
-        <Text style={styles.buttonText}>{strings['auth.signIn.submit']}</Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={submitting}>
+            <Text style={styles.buttonText}>{strings['auth.signIn.submit']}</Text>
+          </TouchableOpacity>
+        </View>
 
-      <Link href="/(auth)/sign-up" style={styles.link}>
-        {strings['auth.signIn.switchToSignUp']}
-      </Link>
-    </View>
+        <Link href="/(auth)/sign-up" style={styles.link}>
+          {strings['auth.signIn.switchToSignUp']}
+        </Link>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-    gap: 12,
+    paddingBottom: 32,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 12,
-    textAlign: 'center',
+  body: {
+    padding: 22,
+    gap: 16,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 18,
+    gap: 12,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 14,
+    fontFamily: fonts.bodyMedium,
+    color: colors.ink,
   },
   button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    borderRadius: 100,
     padding: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   buttonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontFamily: fonts.bodyBold,
   },
   error: {
-    color: '#B00020',
+    color: colors.danger,
+    fontFamily: fonts.bodyMedium,
   },
   link: {
-    marginTop: 16,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.accent,
     textAlign: 'center',
   },
 });

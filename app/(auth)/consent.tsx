@@ -5,6 +5,9 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
+import ScreenHeader from '../../components/ScreenHeader';
+import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/typography';
 
 const CONSENT_POLICY_VERSION = '1.0';
 
@@ -53,46 +56,51 @@ export default function Consent() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{strings['onboarding.consent.title']}</Text>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+      <ScreenHeader title={strings['onboarding.consent.title']} />
 
-      <Section
-        title={strings['onboarding.consent.dataCollected.title']}
-        body={strings['onboarding.consent.dataCollected.body']}
-      />
-      <Section
-        title={strings['onboarding.consent.purpose.title']}
-        body={strings['onboarding.consent.purpose.body']}
-      />
-      <Section
-        title={strings['onboarding.consent.hosting.title']}
-        body={strings['onboarding.consent.hosting.body']}
-      />
-      <Section
-        title={strings['onboarding.consent.retention.title']}
-        body={strings['onboarding.consent.retention.body']}
-      />
-      <Section
-        title={strings['onboarding.consent.rights.title']}
-        body={strings['onboarding.consent.rights.body']}
-      />
+      <View style={styles.body}>
+        <Section
+          title={strings['onboarding.consent.dataCollected.title']}
+          body={strings['onboarding.consent.dataCollected.body']}
+        />
+        <Section
+          title={strings['onboarding.consent.purpose.title']}
+          body={strings['onboarding.consent.purpose.body']}
+        />
+        <Section
+          title={strings['onboarding.consent.hosting.title']}
+          body={strings['onboarding.consent.hosting.body']}
+        />
+        <Section
+          title={strings['onboarding.consent.retention.title']}
+          body={strings['onboarding.consent.retention.body']}
+        />
+        <Section
+          title={strings['onboarding.consent.rights.title']}
+          body={strings['onboarding.consent.rights.body']}
+        />
 
-      <TextInput
-        style={styles.input}
-        placeholder={strings['onboarding.consent.field.displayName']}
-        value={displayName}
-        onChangeText={setDisplayName}
-      />
+        <View style={styles.card}>
+          <TextInput
+            style={styles.input}
+            placeholder={strings['onboarding.consent.field.displayName']}
+            placeholderTextColor={colors.inkMuted}
+            value={displayName}
+            onChangeText={setDisplayName}
+          />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleSubmit}
-        disabled={submitting || displayName.trim().length === 0}
-      >
-        <Text style={styles.buttonText}>{strings['onboarding.consent.submit']}</Text>
-      </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleSubmit}
+            disabled={submitting || displayName.trim().length === 0}
+          >
+            <Text style={styles.buttonText}>{strings['onboarding.consent.submit']}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -108,42 +116,64 @@ function Section({ title, body }: { title: string; body: string }) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
+    paddingBottom: 32,
+  },
+  body: {
+    padding: 22,
     gap: 16,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
   section: {
-    gap: 4,
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 18,
+    gap: 6,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   sectionTitle: {
-    fontWeight: '600',
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    color: colors.ink,
   },
   sectionBody: {
-    color: '#444',
+    fontFamily: fonts.bodyMedium,
+    fontSize: 14,
+    color: colors.inkMuted,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 18,
+    gap: 12,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 14,
+    fontFamily: fonts.bodyMedium,
+    color: colors.ink,
   },
   button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    borderRadius: 100,
     padding: 14,
     alignItems: 'center',
-    marginTop: 8,
   },
   buttonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontFamily: fonts.bodyBold,
   },
   error: {
-    color: '#B00020',
+    color: colors.danger,
+    fontFamily: fonts.bodyMedium,
   },
 });

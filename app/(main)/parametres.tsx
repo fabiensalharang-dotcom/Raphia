@@ -2,10 +2,13 @@ import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import ScreenHeader from '../../components/ScreenHeader';
 import { exporterDonneesFoyer, supprimerCompte } from '../../data/repositories/accountRepository';
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
+import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/typography';
 
 export default function Parametres() {
   const onboarding = useOnboardingState();
@@ -71,116 +74,107 @@ export default function Parametres() {
   }
 
   if (onboarding.status === 'loading') {
-    return <View style={{ flex: 1 }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
   if (onboarding.status !== 'ready') {
     return <Redirect href="/" />;
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(main)/today'))}>
-          <Text style={styles.backArrow}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>{strings['parametres.title']}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+      <ScreenHeader title={strings['parametres.title']} />
 
-      <View style={styles.card}>
-        <Text style={styles.cardText}>{strings['parametres.exportTitle']}</Text>
-        <Text style={styles.cardBody}>{strings['parametres.exportBody']}</Text>
-        {exportErreur ? <Text style={styles.error}>{strings['parametres.exportError']}</Text> : null}
-        <TouchableOpacity style={styles.actionSecondary} onPress={exporter} disabled={exportEnCours}>
-          <Text style={styles.actionSecondaryLabel}>
-            {exportEnCours ? strings['parametres.exportInProgress'] : strings['parametres.exportButton']}
-          </Text>
+      <View style={styles.body}>
+        <View style={styles.card}>
+          <Text style={styles.cardText}>{strings['parametres.exportTitle']}</Text>
+          <Text style={styles.cardBody}>{strings['parametres.exportBody']}</Text>
+          {exportErreur ? <Text style={styles.error}>{strings['parametres.exportError']}</Text> : null}
+          <TouchableOpacity style={styles.actionSecondary} onPress={exporter} disabled={exportEnCours}>
+            <Text style={styles.actionSecondaryLabel}>
+              {exportEnCours ? strings['parametres.exportInProgress'] : strings['parametres.exportButton']}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardText}>{strings['parametres.deleteTitle']}</Text>
+          <Text style={styles.cardBody}>{strings['parametres.deleteBody']}</Text>
+          {suppressionErreur ? <Text style={styles.error}>{strings['parametres.deleteError']}</Text> : null}
+          <TouchableOpacity style={styles.actionDanger} onPress={confirmerSuppression} disabled={suppressionEnCours}>
+            <Text style={styles.actionDangerLabel}>
+              {suppressionEnCours ? strings['parametres.deleteInProgress'] : strings['parametres.deleteButton']}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity onPress={() => supabase.auth.signOut()}>
+          <Text style={styles.signOut}>{strings['today.signOut']}</Text>
         </TouchableOpacity>
       </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardText}>{strings['parametres.deleteTitle']}</Text>
-        <Text style={styles.cardBody}>{strings['parametres.deleteBody']}</Text>
-        {suppressionErreur ? <Text style={styles.error}>{strings['parametres.deleteError']}</Text> : null}
-        <TouchableOpacity style={styles.actionDanger} onPress={confirmerSuppression} disabled={suppressionEnCours}>
-          <Text style={styles.actionDangerLabel}>
-            {suppressionEnCours ? strings['parametres.deleteInProgress'] : strings['parametres.deleteButton']}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity onPress={() => supabase.auth.signOut()}>
-        <Text style={styles.signOut}>{strings['today.signOut']}</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
+    paddingBottom: 32,
+  },
+  body: {
+    padding: 22,
     gap: 16,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backArrow: {
-    fontSize: 28,
-    paddingHorizontal: 16,
-  },
-  headerSpacer: {
-    width: 28,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
   error: {
-    color: '#B00020',
+    color: colors.danger,
+    fontFamily: fonts.bodyMedium,
   },
   card: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 18,
     gap: 8,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   cardText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.bodyBold,
+    color: colors.ink,
   },
   cardBody: {
     fontSize: 14,
-    color: '#444',
+    fontFamily: fonts.bodyMedium,
+    color: colors.inkMuted,
   },
   actionSecondary: {
-    borderWidth: 1,
-    borderColor: '#208AEF',
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    borderRadius: 100,
     padding: 12,
     alignItems: 'center',
     marginTop: 8,
   },
   actionSecondaryLabel: {
-    color: '#208AEF',
-    fontWeight: '600',
+    color: colors.accent,
+    fontFamily: fonts.bodyBold,
   },
   actionDanger: {
-    borderWidth: 1,
-    borderColor: '#B00020',
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+    borderRadius: 100,
     padding: 12,
     alignItems: 'center',
     marginTop: 8,
   },
   actionDangerLabel: {
-    color: '#B00020',
-    fontWeight: '600',
+    color: colors.danger,
+    fontFamily: fonts.bodyBold,
   },
   signOut: {
-    color: '#208AEF',
+    color: colors.accent,
+    fontFamily: fonts.bodySemiBold,
     textAlign: 'center',
     marginTop: 8,
   },

@@ -1,11 +1,14 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
 import { DateField } from '../../components/DateField';
+import ScreenHeader from '../../components/ScreenHeader';
+import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/typography';
 
 export default function AddChild() {
   const onboarding = useOnboardingState();
@@ -48,68 +51,81 @@ export default function AddChild() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{strings['onboarding.addChild.title']}</Text>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+      <ScreenHeader title={strings['onboarding.addChild.title']} />
 
-      <TextInput
-        style={styles.input}
-        placeholder={strings['onboarding.addChild.field.firstName']}
-        value={firstName}
-        onChangeText={setFirstName}
-      />
+      <View style={styles.body}>
+        <View style={styles.card}>
+          <TextInput
+            style={styles.input}
+            placeholder={strings['onboarding.addChild.field.firstName']}
+            placeholderTextColor={colors.inkMuted}
+            value={firstName}
+            onChangeText={setFirstName}
+          />
 
-      <DateField
-        value={birthDate}
-        onChange={setBirthDate}
-        placeholder={strings['onboarding.addChild.field.birthDate']}
-        maximumDate={new Date()}
-      />
+          <DateField
+            value={birthDate}
+            onChange={setBirthDate}
+            placeholder={strings['onboarding.addChild.field.birthDate']}
+            maximumDate={new Date()}
+          />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleSubmit}
-        disabled={submitting || firstName.trim().length === 0 || !birthDate}
-      >
-        <Text style={styles.buttonText}>{strings['onboarding.addChild.submit']}</Text>
-      </TouchableOpacity>
-    </View>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleSubmit}
+            disabled={submitting || firstName.trim().length === 0 || !birthDate}
+          >
+            <Text style={styles.buttonText}>{strings['onboarding.addChild.submit']}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-    gap: 12,
+    paddingBottom: 32,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 12,
-    textAlign: 'center',
+  body: {
+    padding: 22,
+    gap: 16,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 18,
+    gap: 12,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 14,
+    fontFamily: fonts.bodyMedium,
+    color: colors.ink,
   },
   button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    borderRadius: 100,
     padding: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   buttonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontFamily: fonts.bodyBold,
   },
   error: {
-    color: '#B00020',
+    color: colors.danger,
+    fontFamily: fonts.bodyMedium,
   },
 });

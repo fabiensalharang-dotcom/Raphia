@@ -9,6 +9,9 @@ import { supabase } from '../../data/supabaseClient';
 import { enregistrerEvenement } from '../../data/telemetry';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
+import ScreenHeader from '../../components/ScreenHeader';
+import { colors, couleurCategorie } from '../../theme/colors';
+import { fonts } from '../../theme/typography';
 
 const MAX_REGLES_ACTIVES = 6;
 
@@ -155,128 +158,155 @@ export default function ProposeRules() {
   const auMaximum = slots.length >= MAX_REGLES_ACTIVES;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{strings['onboarding.proposeRules.title']}</Text>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+      <ScreenHeader title={strings['onboarding.proposeRules.title']} />
 
-      {slots.map((slot) => (
-        <View key={slot.templateId} style={styles.slot}>
-          {slot.isThematic && <Text style={styles.badge}>{strings['onboarding.proposeRules.thematicBadge']}</Text>}
-          <TextInput
-            style={styles.slotInput}
-            value={slot.label}
-            onChangeText={(text) => modifierLibelle(slot.templateId, text)}
-            accessibilityLabel={strings['onboarding.proposeRules.editLabel']}
-            multiline
-          />
-          <TouchableOpacity onPress={() => retirer(slot.templateId)} style={styles.removeButton}>
-            <Text style={styles.removeLink}>{strings['onboarding.proposeRules.remove']}</Text>
+      <View style={styles.body}>
+        {slots.map((slot) => (
+          <View key={slot.templateId} style={[styles.slot, { borderLeftColor: couleurCategorie(slot.category) }]}>
+            {slot.isThematic && <Text style={styles.badge}>{strings['onboarding.proposeRules.thematicBadge']}</Text>}
+            <TextInput
+              style={styles.slotInput}
+              value={slot.label}
+              onChangeText={(text) => modifierLibelle(slot.templateId, text)}
+              accessibilityLabel={strings['onboarding.proposeRules.editLabel']}
+              multiline
+            />
+            <TouchableOpacity onPress={() => retirer(slot.templateId)} style={styles.removeButton}>
+              <Text style={styles.removeLink}>{strings['onboarding.proposeRules.remove']}</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+
+        {auMaximum ? (
+          <Text style={styles.maxReached}>{strings['onboarding.proposeRules.maxReached']}</Text>
+        ) : (
+          <TouchableOpacity style={styles.addButton} onPress={() => setShowAddList((v) => !v)}>
+            <Text style={styles.addButtonText}>{strings['onboarding.proposeRules.addButton']}</Text>
           </TouchableOpacity>
-        </View>
-      ))}
+        )}
 
-      {auMaximum ? (
-        <Text style={styles.maxReached}>{strings['onboarding.proposeRules.maxReached']}</Text>
-      ) : (
-        <TouchableOpacity style={styles.addButton} onPress={() => setShowAddList((v) => !v)}>
-          <Text style={styles.addButtonText}>{strings['onboarding.proposeRules.addButton']}</Text>
+        {showAddList && !auMaximum && (
+          <View style={styles.addList}>
+            <Text style={styles.addListTitle}>{strings['onboarding.proposeRules.addTitle']}</Text>
+            {disponibles.length === 0 ? (
+              <Text style={styles.addEmpty}>{strings['onboarding.proposeRules.addEmpty']}</Text>
+            ) : (
+              disponibles.map((regle) => (
+                <TouchableOpacity key={regle.id} style={styles.addItem} onPress={() => ajouter(regle)}>
+                  <Text style={styles.addItemLabel}>{regle.label}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={submitting}>
+          <Text style={styles.buttonText}>{strings['onboarding.proposeRules.submit']}</Text>
         </TouchableOpacity>
-      )}
-
-      {showAddList && !auMaximum && (
-        <View style={styles.addList}>
-          <Text style={styles.addListTitle}>{strings['onboarding.proposeRules.addTitle']}</Text>
-          {disponibles.length === 0 ? (
-            <Text>{strings['onboarding.proposeRules.addEmpty']}</Text>
-          ) : (
-            disponibles.map((regle) => (
-              <TouchableOpacity key={regle.id} style={styles.addItem} onPress={() => ajouter(regle)}>
-                <Text>{regle.label}</Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-      )}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={submitting}>
-        <Text style={styles.buttonText}>{strings['onboarding.proposeRules.submit']}</Text>
-      </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
-    gap: 12,
+    paddingBottom: 32,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 8,
+  body: {
+    padding: 22,
+    gap: 14,
   },
   slot: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    gap: 4,
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderLeftWidth: 5,
+    padding: 14,
+    gap: 6,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   slotInput: {
     paddingVertical: 4,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 15,
+    color: colors.ink,
   },
   removeButton: {
     alignSelf: 'flex-end',
   },
   badge: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#208AEF',
+    fontFamily: fonts.bodyBold,
+    color: colors.accent,
+    textTransform: 'uppercase',
   },
   removeLink: {
-    color: '#B00020',
+    color: colors.danger,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
   },
   addButton: {
-    borderWidth: 1,
-    borderColor: '#208AEF',
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    borderRadius: 100,
     padding: 12,
     alignItems: 'center',
   },
   addButtonText: {
-    color: '#208AEF',
-    fontWeight: '600',
+    color: colors.accent,
+    fontFamily: fonts.bodyBold,
   },
   maxReached: {
     textAlign: 'center',
-    color: '#444',
+    fontFamily: fonts.bodyMedium,
+    color: colors.inkMuted,
   },
   addList: {
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    padding: 14,
     gap: 8,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   addListTitle: {
-    fontWeight: '600',
+    fontFamily: fonts.cursive,
+    fontSize: 17,
+    color: colors.ink,
   },
   addItem: {
     paddingVertical: 8,
   },
+  addItemLabel: {
+    fontFamily: fonts.bodyMedium,
+    color: colors.ink,
+  },
+  addEmpty: {
+    fontFamily: fonts.bodyMedium,
+    color: colors.inkMuted,
+  },
   button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    borderRadius: 100,
     padding: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   buttonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontFamily: fonts.bodyBold,
   },
   error: {
-    color: '#B00020',
+    color: colors.danger,
+    fontFamily: fonts.bodyMedium,
   },
 });

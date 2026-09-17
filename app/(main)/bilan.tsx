@@ -1,10 +1,11 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 
 import CarteBilanPartage from '../../components/CarteBilanPartage';
+import ScreenHeader from '../../components/ScreenHeader';
 import {
   fetchDailyDigest,
   fetchLatestWeeklyDigest,
@@ -17,6 +18,8 @@ import { supabase } from '../../data/supabaseClient';
 import { enregistrerEvenement } from '../../data/telemetry';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
+import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/typography';
 
 function dateDuJourDansFuseau(timezone: string): string {
   const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -123,7 +126,7 @@ export default function Bilan() {
   }
 
   if (onboarding.status === 'loading') {
-    return <View style={{ flex: 1 }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
   if (onboarding.status !== 'ready') {
     return <Redirect href="/" />;
@@ -132,15 +135,10 @@ export default function Bilan() {
   const weeklySlots = weeklyDigest?.slots ?? {};
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(main)/today'))}>
-          <Text style={styles.backArrow}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>{strings['bilan.title']}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+      <ScreenHeader title={strings['bilan.title']} />
 
+      <View style={styles.body}>
       {error ? <Text style={styles.error}>{strings['bilan.error']}</Text> : null}
 
       {digest === null && <Text style={styles.notReady}>{strings['bilan.notReady']}</Text>}
@@ -240,71 +238,72 @@ export default function Bilan() {
           </View>
         </View>
       )}
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
+    paddingBottom: 32,
+  },
+  body: {
+    padding: 22,
     gap: 24,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backArrow: {
-    fontSize: 28,
-    paddingHorizontal: 16,
-  },
-  headerSpacer: {
-    width: 28,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
   error: {
-    color: '#B00020',
+    color: colors.danger,
+    fontFamily: fonts.bodySemiBold,
     textAlign: 'center',
   },
   notReady: {
-    color: '#444',
+    color: colors.inkMuted,
+    fontFamily: fonts.bodyMedium,
     textAlign: 'center',
     marginTop: 40,
   },
   section: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 18,
     gap: 16,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   eveningHeader: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.cursive,
+    fontSize: 19,
+    color: colors.ink,
     textTransform: 'capitalize',
   },
   block: {
     gap: 6,
   },
   blockTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#208AEF',
+    fontSize: 12,
+    fontFamily: fonts.bodyBold,
+    color: colors.accent,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   blockBody: {
     fontSize: 15,
-    color: '#222',
+    fontFamily: fonts.bodyMedium,
+    color: colors.ink,
   },
   shareButton: {
-    backgroundColor: '#208AEF',
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    borderRadius: 100,
     padding: 14,
     alignItems: 'center',
     marginTop: 8,
   },
   shareButtonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontFamily: fonts.bodyBold,
   },
   sharePreview: {
     alignItems: 'center',
@@ -312,18 +311,19 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   shareToggle: {
-    borderWidth: 1,
-    borderColor: '#208AEF',
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    borderRadius: 100,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
   shareToggleText: {
-    color: '#208AEF',
-    fontWeight: '600',
+    color: colors.accent,
+    fontFamily: fonts.bodyBold,
   },
   shareCloseText: {
-    color: '#888',
+    color: colors.inkMuted,
+    fontFamily: fonts.bodyMedium,
     textAlign: 'center',
     marginTop: 4,
   },

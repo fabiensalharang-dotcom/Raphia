@@ -1,7 +1,8 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+import ScreenHeader from '../../components/ScreenHeader';
 import type { RuleTemplate } from '../../core/referential';
 import {
   accepterRegleAcquise,
@@ -25,6 +26,8 @@ import { supabase } from '../../data/supabaseClient';
 import { enregistrerEvenement, filtrerTexteIdentifiant } from '../../data/telemetry';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
+import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/typography';
 
 type CarteProps = {
   suggestion: SuggestionView;
@@ -71,35 +74,31 @@ export default function Pilotage() {
   }
 
   if (onboarding.status === 'loading') {
-    return <View style={{ flex: 1 }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
   if (onboarding.status !== 'ready') {
     return <Redirect href="/" />;
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(main)/today'))}>
-          <Text style={styles.backArrow}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>{strings['pilotage.title']}</Text>
-        <View style={styles.headerSpacer} />
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+      <ScreenHeader title={strings['pilotage.title']} />
+
+      <View style={styles.body}>
+        {error ? <Text style={styles.error}>{strings['pilotage.error']}</Text> : null}
+        {suggestions && suggestions.length === 0 ? <Text style={styles.empty}>{strings['pilotage.empty']}</Text> : null}
+
+        {suggestions?.map((suggestion) => (
+          <CarteSuggestion
+            key={suggestion.id}
+            suggestion={suggestion}
+            childId={childId as string}
+            householdId={householdId as string}
+            prenomEnfant={prenomEnfant}
+            onResolved={() => retirerSuggestion(suggestion.id)}
+          />
+        ))}
       </View>
-
-      {error ? <Text style={styles.error}>{strings['pilotage.error']}</Text> : null}
-      {suggestions && suggestions.length === 0 ? <Text style={styles.empty}>{strings['pilotage.empty']}</Text> : null}
-
-      {suggestions?.map((suggestion) => (
-        <CarteSuggestion
-          key={suggestion.id}
-          suggestion={suggestion}
-          childId={childId as string}
-          householdId={householdId as string}
-          prenomEnfant={prenomEnfant}
-          onResolved={() => retirerSuggestion(suggestion.id)}
-        />
-      ))}
     </ScrollView>
   );
 }
@@ -494,48 +493,43 @@ function CarteChangementAge({ suggestion, childId, householdId, onResolved }: Ca
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
+    paddingBottom: 32,
+  },
+  body: {
+    padding: 22,
     gap: 16,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backArrow: {
-    fontSize: 28,
-    paddingHorizontal: 16,
-  },
-  headerSpacer: {
-    width: 28,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
   empty: {
-    color: '#444',
+    color: colors.inkMuted,
+    fontFamily: fonts.bodyMedium,
     textAlign: 'center',
     marginTop: 40,
   },
   error: {
-    color: '#B00020',
+    color: colors.danger,
+    fontFamily: fonts.bodySemiBold,
     textAlign: 'center',
   },
   card: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 18,
     gap: 8,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   cardText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: fonts.bodyBold,
+    color: colors.ink,
   },
   cardBody: {
     fontSize: 14,
-    color: '#444',
+    fontFamily: fonts.bodyMedium,
+    color: colors.inkMuted,
   },
   actions: {
     gap: 8,
@@ -546,35 +540,38 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionPrimary: {
-    backgroundColor: '#208AEF',
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    borderRadius: 100,
     padding: 12,
     alignItems: 'center',
   },
   actionPrimaryLabel: {
     color: '#fff',
-    fontWeight: '600',
+    fontFamily: fonts.bodyBold,
   },
   actionSecondary: {
-    borderWidth: 1,
-    borderColor: '#208AEF',
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    borderRadius: 100,
     padding: 12,
     alignItems: 'center',
   },
   actionSecondaryLabel: {
-    color: '#208AEF',
-    fontWeight: '600',
+    color: colors.accent,
+    fontFamily: fonts.bodyBold,
   },
   dismissLabel: {
-    color: '#888',
+    color: colors.inkMuted,
+    fontFamily: fonts.bodyMedium,
     textAlign: 'center',
     marginTop: 4,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: 12,
     padding: 10,
+    fontFamily: fonts.bodyMedium,
+    color: colors.ink,
   },
 });

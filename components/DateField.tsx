@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 import type { DateFieldProps } from './DateField.types';
+import { colors } from '../theme/colors';
+import { fonts } from '../theme/typography';
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString('fr-FR');
@@ -14,7 +16,7 @@ export function DateField({ value, onChange, placeholder, maximumDate }: DateFie
   return (
     <>
       <TouchableOpacity style={styles.input} onPress={() => setShowPicker(true)}>
-        <Text>{value ? formatDate(value) : placeholder}</Text>
+        <Text style={value ? styles.text : styles.placeholder}>{value ? formatDate(value) : placeholder}</Text>
       </TouchableOpacity>
 
       {showPicker && (
@@ -35,10 +37,18 @@ export function DateField({ value, onChange, placeholder, maximumDate }: DateFie
 
 const styles = StyleSheet.create({
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 14,
     justifyContent: 'center',
+  },
+  text: {
+    fontFamily: fonts.bodyMedium,
+    color: colors.ink,
+  },
+  placeholder: {
+    fontFamily: fonts.bodyMedium,
+    color: colors.inkMuted,
   },
 });

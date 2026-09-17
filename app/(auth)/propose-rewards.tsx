@@ -9,6 +9,9 @@ import { fetchRewardTemplates } from '../../data/repositories/rewardTemplateRepo
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
+import ScreenHeader from '../../components/ScreenHeader';
+import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/typography';
 
 export default function ProposeRewards() {
   const onboarding = useOnboardingState();
@@ -99,72 +102,90 @@ export default function ProposeRewards() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{strings['onboarding.proposeRewards.title']}</Text>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+      <ScreenHeader title={strings['onboarding.proposeRewards.title']} />
 
-      <Text style={styles.sectionTitle}>{strings['onboarding.proposeRewards.dailyTitle']}</Text>
-      {(quotidiennes ?? []).map((r) => (
-        <View key={r.id} style={styles.rewardCard}>
-          <Text style={styles.rewardLabel}>{r.label}</Text>
+      <View style={styles.body}>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>{strings['onboarding.proposeRewards.dailyTitle']}</Text>
+          {(quotidiennes ?? []).map((r) => (
+            <View key={r.id} style={styles.rewardCard}>
+              <Text style={styles.rewardLabel}>{r.label}</Text>
+            </View>
+          ))}
         </View>
-      ))}
 
-      <Text style={styles.sectionTitle}>{strings['onboarding.proposeRewards.weeklyTitle']}</Text>
-      {(hebdomadaires ?? []).map((r) => (
-        <View key={r.id} style={styles.rewardCard}>
-          <Text style={styles.rewardLabel}>{r.label}</Text>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>{strings['onboarding.proposeRewards.weeklyTitle']}</Text>
+          {(hebdomadaires ?? []).map((r) => (
+            <View key={r.id} style={styles.rewardCard}>
+              <Text style={styles.rewardLabel}>{r.label}</Text>
+            </View>
+          ))}
         </View>
-      ))}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleSubmit}
-        disabled={submitting || !quotidiennes || !hebdomadaires}
-      >
-        <Text style={styles.buttonText}>{strings['onboarding.proposeRewards.submit']}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleSubmit}
+          disabled={submitting || !quotidiennes || !hebdomadaires}
+        >
+          <Text style={styles.buttonText}>{strings['onboarding.proposeRewards.submit']}</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
-    gap: 12,
+    paddingBottom: 32,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 8,
+  body: {
+    padding: 22,
+    gap: 16,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 18,
+    gap: 10,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 8,
+    fontFamily: fonts.cursive,
+    fontSize: 19,
+    color: colors.ink,
   },
   rewardCard: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 14,
     padding: 14,
   },
   rewardLabel: {
-    fontSize: 16,
+    fontSize: 15,
+    fontFamily: fonts.bodyMedium,
+    color: colors.ink,
   },
   button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    borderRadius: 100,
     padding: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   buttonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontFamily: fonts.bodyBold,
   },
   error: {
-    color: '#B00020',
+    color: colors.danger,
+    fontFamily: fonts.bodyMedium,
   },
 });
