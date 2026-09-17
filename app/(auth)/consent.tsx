@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -8,6 +9,15 @@ import { strings } from '../../i18n/fr-FR';
 import ScreenHeader from '../../components/ScreenHeader';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
+
+const PROMESSES = [
+  'onboarding.consent.promise.ritual',
+  'onboarding.consent.promise.setup',
+  'onboarding.consent.promise.rewards',
+  'onboarding.consent.promise.tracking',
+  'onboarding.consent.promise.growth',
+  'onboarding.consent.promise.digest',
+] as const;
 
 const CONSENT_POLICY_VERSION = '1.0';
 
@@ -60,6 +70,16 @@ export default function Consent() {
       <ScreenHeader title={strings['onboarding.consent.title']} />
 
       <View style={styles.body}>
+        <View style={styles.promiseCard}>
+          <Text style={styles.promiseTitle}>{strings['onboarding.consent.promise.title']}</Text>
+          {PROMESSES.map((cle) => (
+            <View key={cle} style={styles.promiseRow}>
+              <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
+              <Text style={styles.promiseText}>{strings[cle]}</Text>
+            </View>
+          ))}
+        </View>
+
         <Section
           title={strings['onboarding.consent.dataCollected.title']}
           body={strings['onboarding.consent.dataCollected.body']}
@@ -121,6 +141,35 @@ const styles = StyleSheet.create({
   body: {
     padding: 22,
     gap: 16,
+  },
+  promiseCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: colors.accentSoft,
+    padding: 18,
+    gap: 12,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  promiseTitle: {
+    fontFamily: fonts.cursive,
+    fontSize: 20,
+    color: colors.ink,
+  },
+  promiseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  promiseText: {
+    flex: 1,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 15,
+    color: colors.ink,
   },
   section: {
     backgroundColor: colors.surface,

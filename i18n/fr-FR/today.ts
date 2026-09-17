@@ -1,5 +1,5 @@
 export const today = {
-  'today.thematicBadge': 'Règle thématique',
+  'today.thematicBadge': 'Défi',
   'today.monthlyCheckBadge': 'Vérification mensuelle',
   'today.noEntryForDay': "Aucune donnée pour ce jour.",
   'today.closeDay': 'Clôturer la journée',
@@ -13,7 +13,7 @@ export const today = {
 
   'today.greetingPrefix': 'Bonjour',
   'today.mascotGreeting': 'Pousse est content de te voir',
-  'today.rulesSectionTitle': 'Tes règles aujourd’hui',
+  'today.rulesSectionTitle': 'Tes habitudes aujourd’hui',
   'today.pointsSuffixLabel': 'points aujourd’hui',
   'today.startRitual': 'Lancer le rituel du soir',
   'today.startRitualSubtitle': '~90 secondes, avec Pousse',

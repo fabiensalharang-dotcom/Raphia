@@ -10,7 +10,7 @@ export const parametres = {
 
   'parametres.deleteTitle': 'Supprimer mon compte',
   'parametres.deleteBody':
-    'Supprime définitivement les enfants, règles, journées et bilans de ton foyer.',
+    'Supprime définitivement les enfants, habitudes, journées et bilans de ton foyer.',
   'parametres.deleteButton': 'Supprimer mon compte',
   'parametres.deleteConfirmTitle': 'Confirmer la suppression',
   'parametres.deleteConfirmBody':

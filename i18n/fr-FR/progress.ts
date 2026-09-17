@@ -5,7 +5,7 @@ export const progress = {
   'progress.window12': '12 semaines',
   'progress.pointsTitle': 'Points quotidiens',
   'progress.pointsEmpty': "Pas encore de journée enregistrée sur cette période.",
-  'progress.ruleRatesTitle': 'Taux de réussite par règle',
+  'progress.ruleRatesTitle': 'Taux de réussite par habitude',
   'progress.ruleRatesEmpty': 'Pas encore de cochage sur cette période.',
   'progress.weeklyThresholdsTitle': 'Seuils atteints par semaine',
   'progress.weeklyThresholdsEmpty': 'Pas encore de semaine enregistrée sur cette période.',

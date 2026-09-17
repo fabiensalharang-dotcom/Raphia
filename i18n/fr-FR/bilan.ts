@@ -10,7 +10,7 @@ export const bilan = {
   'bilan.toNotice': 'À remarquer',
   'bilan.tomorrow': 'Demain',
   'bilan.pointsSummary': '{score} points',
-  'bilan.noRuleHeld': 'Aucune règle tenue aujourd’hui.',
+  'bilan.noRuleHeld': 'Aucune habitude tenue aujourd’hui.',
   'bilan.notReady': 'Le bilan sera prêt une fois la journée clôturée.',
   'bilan.error': 'Impossible de charger le bilan, réessaie.',
   'bilan.openBilan': 'Voir le bilan',
@@ -34,7 +34,7 @@ export const bilan = {
   'bilan.observation.streak_building.4': '« {ruleLabel} » tient bon depuis {days} jours.',
 
   'bilan.observation.perfect_day.0': 'Toutes les règles ont été tenues aujourd’hui.',
-  'bilan.observation.perfect_day.1': 'Chaque règle applicable a été tenue aujourd’hui.',
+  'bilan.observation.perfect_day.1': 'Chaque habitude applicable a été tenue aujourd’hui.',
   'bilan.observation.perfect_day.2': 'Aujourd’hui, tout a été tenu.',
   'bilan.observation.perfect_day.3': 'Une journée où tout a été tenu.',
   'bilan.observation.perfect_day.4': 'Rien à ajouter : tout a été tenu aujourd’hui.',
@@ -61,7 +61,7 @@ export const bilan = {
   'bilan.observation.rule_struggling.1': '« {ruleLabel} » reste difficile à tenir depuis plusieurs jours.',
   'bilan.observation.rule_struggling.2': '« {ruleLabel} » n’est pas encore installée dans les habitudes.',
   'bilan.observation.rule_struggling.3': '« {ruleLabel} » demande encore un peu d’accompagnement.',
-  'bilan.observation.rule_struggling.4': '« {ruleLabel} » prend plus de temps à s’installer que les autres règles.',
+  'bilan.observation.rule_struggling.4': '« {ruleLabel} » prend plus de temps à s’installer que les autres habitudes.',
 
   'bilan.observation.steady.0': 'La journée s’est déroulée normalement.',
   'bilan.observation.steady.1': 'Une journée sans particularité aujourd’hui.',
@@ -105,10 +105,10 @@ export const bilan = {
   'bilan.question.close_to_threshold.3': 'Tu peux lui demander ce qu’il retient de sa journée.',
 
   'bilan.question.rule_struggling.0':
-    'Tu peux lui demander ce qui est compliqué dans cette règle — souvent l’enfant le sait mieux que nous.',
-  'bilan.question.rule_struggling.1': 'Tu peux lui demander ce qui rend cette règle difficile pour lui en ce moment.',
-  'bilan.question.rule_struggling.2': 'Tu peux lui demander s’il a une idée pour rendre cette règle plus simple.',
-  'bilan.question.rule_struggling.3': 'Tu peux lui demander ce qui pourrait l’aider avec cette règle.',
+    'Tu peux lui demander ce qui est compliqué dans cette habitude — souvent l’enfant le sait mieux que nous.',
+  'bilan.question.rule_struggling.1': 'Tu peux lui demander ce qui rend cette habitude difficile pour lui en ce moment.',
+  'bilan.question.rule_struggling.2': 'Tu peux lui demander s’il a une idée pour rendre cette habitude plus simple.',
+  'bilan.question.rule_struggling.3': 'Tu peux lui demander ce qui pourrait l’aider avec cette habitude.',
 
   'bilan.question.steady.0': 'Tu peux lui demander quel a été le meilleur moment de sa journée.',
   'bilan.question.steady.1': 'Tu peux lui demander ce qu’il a fait de bien aujourd’hui.',
@@ -117,7 +117,7 @@ export const bilan = {
 
   'bilan.weekly.title': 'Bilan de la semaine',
   'bilan.weekly.pointsSummary': '{points} points cette semaine — seuil atteint {daysThresholdMet} jours sur 7',
-  'bilan.weekly.mostRegular': '« {ruleLabel} » est la règle la plus régulière cette semaine.',
+  'bilan.weekly.mostRegular': '« {ruleLabel} » est l’habitude la plus régulière cette semaine.',
   'bilan.weekly.mostImproved': '« {ruleLabel} » a le plus progressé par rapport à la semaine dernière.',
   'bilan.weekly.rewardUnlocked': 'La récompense de la semaine est débloquée : {rewardLabel}',
   'bilan.weekly.focus': 'Un focus pour la semaine prochaine : « {ruleLabel} ».',
@@ -132,6 +132,8 @@ export const bilan = {
 
   'bilan.notification.title': 'Bilan du soir',
   'bilan.notification.body': 'Le bilan de ce soir est prêt.',
+  'bilan.reminderNotification.title': 'Rituel du soir',
+  'bilan.reminderNotification.body': "C'est bientôt l'heure du rituel du soir.",
   'bilan.weeklyNotification.title': 'Bilan de la semaine',
   'bilan.weeklyNotification.body': 'Le bilan de la semaine est prêt.',
   'bilan.birthdayNotification.title': 'Anniversaire',

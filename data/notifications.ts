@@ -56,6 +56,26 @@ export async function programmerNotificationBilan(digestTime: string): Promise<v
   });
 }
 
+// §8.7, garde-fou #16 : jamais de relance conditionnée à une journée non
+// clôturée. Ce rappel est donc volontairement inconditionnel — même
+// message, même heure, pour tous les foyers, qu'ils aient déjà clôturé
+// ou non. Identifiant stable pour ne jamais en accumuler plusieurs.
+export async function programmerRappelRituelQuotidien(digestTime: string): Promise<void> {
+  const permission = await Notifications.getPermissionsAsync();
+  if (permission.status !== 'granted') return;
+
+  const [heures, minutes] = digestTime.split(':').map(Number);
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'rappel-rituel-quotidien',
+    content: {
+      title: strings['bilan.reminderNotification.title'],
+      body: strings['bilan.reminderNotification.body'],
+    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: heures, minute: minutes },
+  });
+}
+
 export async function programmerNotificationBilanHebdomadaire(digestTime: string): Promise<void> {
   const permission = await Notifications.getPermissionsAsync();
   if (permission.status !== 'granted') return;

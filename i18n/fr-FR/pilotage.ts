@@ -11,10 +11,10 @@ export const pilotage = {
 
   'pilotage.ruleFailingIntro': "n'est pas tenue depuis 10 jours.",
   'pilotage.ruleFailingBody':
-    "Ce n'est pas forcément l'enfant : c'est souvent que la règle demande trop de choses à la fois.",
+    "Ce n'est pas forcément l'enfant : c'est souvent que l'habitude demande trop de choses à la fois.",
   'pilotage.splitRule': 'Découper',
   'pilotage.rewriteRule': 'Reformuler moi-même',
-  'pilotage.pauseRule': 'Mettre cette règle en pause',
+  'pilotage.pauseRule': 'Mettre cette habitude en pause',
   'pilotage.rewritePlaceholder': 'Nouvelle formulation',
   'pilotage.rewriteShortPlaceholder': 'Version courte',
   'pilotage.rewriteSave': 'Enregistrer',
@@ -28,15 +28,15 @@ export const pilotage = {
 
   'pilotage.thresholdHighBody': "Le seuil est atteint chaque jour depuis 3 semaines.",
   'pilotage.thresholdLowBody': "Le seuil est rarement atteint depuis 3 semaines.",
-  'pilotage.addRule': 'Ajouter une règle',
+  'pilotage.addRule': 'Ajouter une habitude',
   'pilotage.raiseThreshold': 'Relever le seuil',
   'pilotage.lowerThreshold': 'Baisser le seuil',
-  'pilotage.removeRule': 'Retirer une règle',
-  'pilotage.chooseRuleToRemove': 'Quelle règle retirer ?',
-  'pilotage.noCandidateRule': 'Pas de nouvelle règle disponible pour le moment.',
-  'pilotage.boardFull': 'Le tableau compte déjà 6 règles.',
+  'pilotage.removeRule': 'Retirer une habitude',
+  'pilotage.chooseRuleToRemove': 'Quelle habitude retirer ?',
+  'pilotage.noCandidateRule': 'Pas de nouvelle habitude disponible pour le moment.',
+  'pilotage.boardFull': 'Le tableau compte déjà 6 habitudes.',
 
-  'pilotage.ageChangeBody': 'Voici des règles adaptées à son nouvel âge.',
+  'pilotage.ageChangeBody': 'Voici des habitudes adaptées à son nouvel âge.',
 
   'pilotage.dismiss': 'Écarter',
 };

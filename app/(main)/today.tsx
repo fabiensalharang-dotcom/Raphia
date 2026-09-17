@@ -29,6 +29,7 @@ import {
   programmerNotificationAnniversaire,
   programmerNotificationBilan,
   programmerNotificationBilanHebdomadaire,
+  programmerRappelRituelQuotidien,
 } from '../../data/notifications';
 import { enregistrerEvenement } from '../../data/telemetry';
 import { useOnboardingState } from '../../data/useOnboardingState';
@@ -227,6 +228,7 @@ export default function Today() {
         await genererBilanDuJour(childId, nouvelleVue.dayEntryId, timezone);
         await demanderAutorisationSiPremierRituel(childId);
         if (digestTime) await programmerNotificationBilan(digestTime);
+        if (digestTime) await programmerRappelRituelQuotidien(digestTime);
 
         if (weekStartDay !== null && estDernierJourDeLaSemaine(nouvelleVue.date, weekStartDay)) {
           const { data: child } = await supabase.from('child').select('settings').eq('id', childId).single();
