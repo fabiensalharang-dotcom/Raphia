@@ -2,8 +2,10 @@ import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+import ChildSwitcher from '../../components/ChildSwitcher';
 import ScreenHeader from '../../components/ScreenHeader';
 import type { RuleTemplate } from '../../core/referential';
+import { useActiveChild } from '../../data/activeChild';
 import {
   accepterRegleAcquise,
   ajouterRecompensesApresUsure,
@@ -39,7 +41,8 @@ type CarteProps = {
 
 export default function Pilotage() {
   const onboarding = useOnboardingState();
-  const childId = onboarding.status === 'ready' ? onboarding.childId : null;
+  const { activeChildId } = useActiveChild();
+  const childId = activeChildId;
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
   const [suggestions, setSuggestions] = useState<SuggestionView[] | null>(null);
   const [prenomEnfant, setPrenomEnfant] = useState('');
@@ -83,6 +86,7 @@ export default function Pilotage() {
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
       <ScreenHeader title={strings['pilotage.title']} />
+      <ChildSwitcher />
 
       <View style={styles.body}>
         {error ? <Text style={styles.error}>{strings['pilotage.error']}</Text> : null}

@@ -5,7 +5,9 @@ import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 
 import CarteBilanPartage from '../../components/CarteBilanPartage';
+import ChildSwitcher from '../../components/ChildSwitcher';
 import ScreenHeader from '../../components/ScreenHeader';
+import { useActiveChild } from '../../data/activeChild';
 import {
   fetchDailyDigest,
   fetchLatestWeeklyDigest,
@@ -52,7 +54,8 @@ function rendreGabarit(cle: string, variante: number, slots: Record<string, unkn
 
 export default function Bilan() {
   const onboarding = useOnboardingState();
-  const childId = onboarding.status === 'ready' ? onboarding.childId : null;
+  const { activeChildId } = useActiveChild();
+  const childId = activeChildId;
   const [digest, setDigest] = useState<DailyDigestData | null | undefined>(undefined);
   const [weeklyDigest, setWeeklyDigest] = useState<WeeklyDigestData | null>(null);
   const [streakDays, setStreakDays] = useState<number | null>(null);
@@ -137,6 +140,7 @@ export default function Bilan() {
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
       <ScreenHeader title={strings['bilan.title']} />
+      <ChildSwitcher />
 
       <View style={styles.body}>
       {error ? <Text style={styles.error}>{strings['bilan.error']}</Text> : null}

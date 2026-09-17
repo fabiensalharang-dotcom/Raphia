@@ -1,4 +1,4 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -15,12 +15,19 @@ import { fonts } from '../../theme/typography';
 
 export default function ProposeRewards() {
   const onboarding = useOnboardingState();
+  const params = useLocalSearchParams<{ childId?: string; householdId?: string }>();
+  const modeAjoutSupplementaire = typeof params.childId === 'string' && typeof params.householdId === 'string';
   const [quotidiennes, setQuotidiennes] = useState<RewardTemplate[] | null>(null);
   const [hebdomadaires, setHebdomadaires] = useState<RewardTemplate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const childId = onboarding.status === 'needs-rewards' ? onboarding.childId : null;
+  const childId = modeAjoutSupplementaire
+    ? (params.childId as string)
+    : onboarding.status === 'needs-rewards'
+      ? onboarding.childId
+      : null;
+  const householdId = modeAjoutSupplementaire ? (params.householdId as string) : null;
 
   useEffect(() => {
     if (!childId) return;
@@ -56,27 +63,29 @@ export default function ProposeRewards() {
   if (onboarding.status === 'signed-out') {
     return <Redirect href="/(auth)/sign-in" />;
   }
-  if (onboarding.status === 'needs-consent') {
-    return <Redirect href="/(auth)/consent" />;
-  }
-  if (onboarding.status === 'needs-child') {
-    return <Redirect href="/(auth)/add-child" />;
-  }
-  if (onboarding.status === 'needs-rules') {
-    return <Redirect href="/(auth)/propose-rules" />;
-  }
-  if (onboarding.status === 'needs-threshold' || onboarding.status === 'ready') {
-    return <Redirect href="/" />;
+  if (!modeAjoutSupplementaire) {
+    if (onboarding.status === 'needs-consent') {
+      return <Redirect href="/(auth)/consent" />;
+    }
+    if (onboarding.status === 'needs-child') {
+      return <Redirect href="/(auth)/add-child" />;
+    }
+    if (onboarding.status === 'needs-rules') {
+      return <Redirect href="/(auth)/propose-rules" />;
+    }
+    if (onboarding.status === 'needs-threshold' || onboarding.status === 'ready') {
+      return <Redirect href="/" />;
+    }
   }
 
   async function handleSubmit() {
-    if (onboarding.status !== 'needs-rewards' || !quotidiennes || !hebdomadaires) return;
+    if (!childId || !quotidiennes || !hebdomadaires) return;
 
     setError(null);
     setSubmitting(true);
     const lignes = [
       ...quotidiennes.map((r, index) => ({
-        child_id: onboarding.childId,
+        child_id: childId,
         template_id: r.id,
         label: r.label,
         category: r.category,
@@ -84,7 +93,7 @@ export default function ProposeRewards() {
         display_order: index,
       })),
       ...hebdomadaires.map((r, index) => ({
-        child_id: onboarding.childId,
+        child_id: childId,
         template_id: r.id,
         label: r.label,
         category: r.category,
@@ -98,7 +107,11 @@ export default function ProposeRewards() {
       setError(strings['onboarding.proposeRewards.error']);
       return;
     }
-    router.replace('/');
+    if (modeAjoutSupplementaire && householdId) {
+      router.replace(`/(auth)/set-threshold?childId=${childId}&householdId=${householdId}`);
+    } else {
+      router.replace('/');
+    }
   }
 
   return (

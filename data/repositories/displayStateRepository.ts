@@ -1,4 +1,5 @@
 import { calculerSerieEnCours, estDernierJourDeLaSemaine, type EtatRegle, type JourDeSerie } from '../../core/scoring';
+import type { RuleCategory } from '../../core/referential/types';
 import { fetchDayEntry } from './dayEntryRepository';
 import { fetchAvailableRewards, fetchGrantForDayEntry, type GrantedReward, type RewardInstanceOption } from './rewardGrantRepository';
 import { creerResumeSiAbsent } from './weekSummaryRepository';
@@ -7,6 +8,7 @@ import { supabase } from '../supabaseClient';
 export type DisplayRuleState = {
   shortLabel: string;
   icon: string;
+  category: RuleCategory;
   isThematic: boolean;
   etat: EtatRegle;
 };
@@ -212,6 +214,7 @@ export async function fetchDisplayState(childId: string): Promise<DisplayState> 
     rules: (dayEntry?.checks ?? []).map((c) => ({
       shortLabel: c.shortLabel,
       icon: c.icon,
+      category: c.category,
       isThematic: c.isThematic,
       etat: c.etat,
     })),

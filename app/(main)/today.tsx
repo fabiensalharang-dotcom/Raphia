@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import ChildSwitcher from '../../components/ChildSwitcher';
 import Pousse from '../../components/Pousse';
 import type { RuleCategory } from '../../core/referential/types';
+import { useActiveChild } from '../../data/activeChild';
 import { genererBilanDuJour, genererBilanHebdomadaireSiAbsent } from '../../data/repositories/bilanRepository';
 import { estDernierJourDeLaSemaine, estJourModifiable } from '../../core/scoring';
 import type { EtatRegle } from '../../core/scoring/types';
@@ -88,7 +90,18 @@ export default function Today() {
   const [childFirstName, setChildFirstName] = useState<string>('');
 
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
-  const childId = onboarding.status === 'ready' ? onboarding.childId : null;
+  const { activeChildId, setActiveChildId, children: enfantsFoyer } = useActiveChild();
+  const aPlusieursEnfants = enfantsFoyer.length > 1;
+  const params = useLocalSearchParams<{ activateChildId?: string }>();
+  const childId = activeChildId;
+
+  // Arrivée depuis la configuration d'un enfant supplémentaire (Réglages) :
+  // on bascule directement sur son tableau plutôt que de rester sur le
+  // premier enfant du foyer.
+  useEffect(() => {
+    if (typeof params.activateChildId === 'string') setActiveChildId(params.activateChildId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.activateChildId]);
 
   useEffect(() => {
     if (!householdId) return;
@@ -268,7 +281,9 @@ export default function Today() {
         </View>
       </View>
 
-      <View style={styles.datePill}>
+      <ChildSwitcher />
+
+      <View style={[styles.datePill, aPlusieursEnfants && styles.datePillBelowSwitcher]}>
         <TouchableOpacity onPress={() => selectedDate && setSelectedDate(ajouterJours(selectedDate, -1))}>
           <Ionicons name="chevron-back" size={16} color={colors.inkMuted} />
         </TouchableOpacity>
@@ -441,6 +456,9 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+  },
+  datePillBelowSwitcher: {
+    marginTop: 14,
   },
   dateText: {
     fontFamily: fonts.bodyBold,

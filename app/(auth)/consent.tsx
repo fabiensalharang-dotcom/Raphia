@@ -7,17 +7,17 @@ import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
 import ScreenHeader from '../../components/ScreenHeader';
-import { colors } from '../../theme/colors';
+import { categoryColors, colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
 
-const PROMESSES = [
-  'onboarding.consent.promise.ritual',
-  'onboarding.consent.promise.setup',
-  'onboarding.consent.promise.rewards',
-  'onboarding.consent.promise.tracking',
-  'onboarding.consent.promise.growth',
-  'onboarding.consent.promise.digest',
-] as const;
+const PROMESSES: { cle: 'onboarding.consent.promise.ritual' | 'onboarding.consent.promise.setup' | 'onboarding.consent.promise.rewards' | 'onboarding.consent.promise.tracking' | 'onboarding.consent.promise.growth' | 'onboarding.consent.promise.digest'; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
+  { cle: 'onboarding.consent.promise.ritual', icon: 'timer-outline', color: categoryColors.scolaire },
+  { cle: 'onboarding.consent.promise.setup', icon: 'options-outline', color: categoryColors.autonomie },
+  { cle: 'onboarding.consent.promise.rewards', icon: 'gift-outline', color: categoryColors.social },
+  { cle: 'onboarding.consent.promise.tracking', icon: 'trending-up-outline', color: categoryColors.organisation },
+  { cle: 'onboarding.consent.promise.growth', icon: 'leaf-outline', color: categoryColors.securite },
+  { cle: 'onboarding.consent.promise.digest', icon: 'moon-outline', color: categoryColors.ecrans },
+];
 
 type PointConformite = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -93,12 +93,20 @@ export default function Consent() {
       <View style={styles.body}>
         <View style={styles.promiseCard}>
           <Text style={styles.promiseTitle}>{strings['onboarding.consent.promise.title']}</Text>
-          {PROMESSES.map((cle) => (
-            <View key={cle} style={styles.promiseRow}>
-              <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
-              <Text style={styles.promiseText}>{strings[cle]}</Text>
-            </View>
-          ))}
+          <View style={styles.promiseGrid}>
+            {paires(PROMESSES).map((ligne) => (
+              <View key={ligne.map((p) => p.cle).join('+')} style={styles.promiseRowGrid}>
+                {ligne.map((promesse) => (
+                  <View key={promesse.cle} style={styles.promiseTile}>
+                    <View style={[styles.promiseBadge, { backgroundColor: promesse.color }]}>
+                      <Ionicons name={promesse.icon} size={18} color="#fff" />
+                    </View>
+                    <Text style={styles.promiseText}>{strings[promesse.cle]}</Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={styles.complianceGrid}>
@@ -164,10 +172,8 @@ const styles = StyleSheet.create({
   promiseCard: {
     backgroundColor: colors.surface,
     borderRadius: 22,
-    borderWidth: 1.5,
-    borderColor: colors.accentSoft,
     padding: 18,
-    gap: 12,
+    gap: 14,
     shadowColor: colors.ink,
     shadowOpacity: 0.08,
     shadowRadius: 10,
@@ -179,15 +185,27 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: colors.ink,
   },
-  promiseRow: {
+  promiseGrid: {
+    gap: 14,
+  },
+  promiseRowGrid: {
     flexDirection: 'row',
+    gap: 14,
+  },
+  promiseTile: {
+    flex: 1,
+    gap: 8,
+  },
+  promiseBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'center',
   },
   promiseText: {
-    flex: 1,
     fontFamily: fonts.bodyMedium,
-    fontSize: 15,
+    fontSize: 13,
     color: colors.ink,
   },
   complianceGrid: {

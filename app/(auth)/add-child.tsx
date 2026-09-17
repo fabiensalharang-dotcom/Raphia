@@ -1,4 +1,4 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -12,6 +12,11 @@ import { fonts } from '../../theme/typography';
 
 export default function AddChild() {
   const onboarding = useOnboardingState();
+  const params = useLocalSearchParams<{ householdId?: string }>();
+  // §1.2 « Multi-enfant » : un foyer déjà « ready » peut revenir sur cet
+  // écran pour un enfant supplémentaire — le foyer arrive alors en
+  // paramètre de route plutôt que via la machine à états de l'inscription.
+  const modeAjoutSupplementaire = typeof params.householdId === 'string';
   const [firstName, setFirstName] = useState('');
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -20,34 +25,50 @@ export default function AddChild() {
   if (onboarding.status === 'signed-out') {
     return <Redirect href="/(auth)/sign-in" />;
   }
-  if (onboarding.status === 'needs-consent') {
-    return <Redirect href="/(auth)/consent" />;
-  }
-  if (
-    onboarding.status === 'needs-rules' ||
-    onboarding.status === 'needs-rewards' ||
-    onboarding.status === 'needs-threshold' ||
-    onboarding.status === 'ready'
-  ) {
-    return <Redirect href="/" />;
+  if (!modeAjoutSupplementaire) {
+    if (onboarding.status === 'needs-consent') {
+      return <Redirect href="/(auth)/consent" />;
+    }
+    if (
+      onboarding.status === 'needs-rules' ||
+      onboarding.status === 'needs-rewards' ||
+      onboarding.status === 'needs-threshold' ||
+      onboarding.status === 'ready'
+    ) {
+      return <Redirect href="/" />;
+    }
   }
 
+  const householdId = modeAjoutSupplementaire
+    ? (params.householdId as string)
+    : onboarding.status === 'needs-child'
+      ? onboarding.householdId
+      : null;
+
   async function handleSubmit() {
-    if (onboarding.status !== 'needs-child' || !birthDate) return;
+    if (!householdId || !birthDate) return;
 
     setError(null);
     setSubmitting(true);
-    const { error: insertError } = await supabase.from('child').insert({
-      household_id: onboarding.householdId,
-      first_name: firstName,
-      birth_date: birthDate.toISOString().slice(0, 10),
-    });
+    const { data: inserted, error: insertError } = await supabase
+      .from('child')
+      .insert({
+        household_id: householdId,
+        first_name: firstName,
+        birth_date: birthDate.toISOString().slice(0, 10),
+      })
+      .select('id')
+      .single();
     setSubmitting(false);
-    if (insertError) {
+    if (insertError || !inserted) {
       setError(strings['onboarding.addChild.error']);
       return;
     }
-    router.replace('/');
+    if (modeAjoutSupplementaire) {
+      router.replace(`/(auth)/propose-rules?childId=${inserted.id}&householdId=${householdId}`);
+    } else {
+      router.replace('/');
+    }
   }
 
   return (

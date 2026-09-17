@@ -1,4 +1,4 @@
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -39,6 +39,11 @@ function slotFromTemplate(template: RuleTemplate, isThematic: boolean): Slot {
 
 export default function ProposeRules() {
   const onboarding = useOnboardingState();
+  const params = useLocalSearchParams<{ childId?: string; householdId?: string }>();
+  // §1.2 « Multi-enfant » : un enfant supplémentaire arrive ici avec son id
+  // et celui du foyer en paramètre de route, plutôt que via la machine à
+  // états de l'inscription (qui ne connaît que le tout premier enfant).
+  const modeAjoutSupplementaire = typeof params.childId === 'string' && typeof params.householdId === 'string';
   const [candidats, setCandidats] = useState<RuleTemplate[] | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [showAddList, setShowAddList] = useState(false);
@@ -47,7 +52,16 @@ export default function ProposeRules() {
   const [proposesInitialement, setProposesInitialement] = useState<string[]>([]);
   const [ageEnfant, setAgeEnfant] = useState<number | undefined>(undefined);
 
-  const childId = onboarding.status === 'needs-rules' ? onboarding.childId : null;
+  const childId = modeAjoutSupplementaire
+    ? (params.childId as string)
+    : onboarding.status === 'needs-rules'
+      ? onboarding.childId
+      : null;
+  const householdId = modeAjoutSupplementaire
+    ? (params.householdId as string)
+    : onboarding.status === 'needs-rules'
+      ? onboarding.householdId
+      : null;
 
   useEffect(() => {
     if (!childId) return;
@@ -89,16 +103,18 @@ export default function ProposeRules() {
   if (onboarding.status === 'signed-out') {
     return <Redirect href="/(auth)/sign-in" />;
   }
-  if (onboarding.status === 'needs-consent') {
-    return <Redirect href="/(auth)/consent" />;
-  }
-  if (
-    onboarding.status === 'needs-child' ||
-    onboarding.status === 'needs-rewards' ||
-    onboarding.status === 'needs-threshold' ||
-    onboarding.status === 'ready'
-  ) {
-    return <Redirect href="/" />;
+  if (!modeAjoutSupplementaire) {
+    if (onboarding.status === 'needs-consent') {
+      return <Redirect href="/(auth)/consent" />;
+    }
+    if (
+      onboarding.status === 'needs-child' ||
+      onboarding.status === 'needs-rewards' ||
+      onboarding.status === 'needs-threshold' ||
+      onboarding.status === 'ready'
+    ) {
+      return <Redirect href="/" />;
+    }
   }
 
   function retirer(templateId: string) {
@@ -117,13 +133,13 @@ export default function ProposeRules() {
   }
 
   async function handleSubmit() {
-    if (onboarding.status !== 'needs-rules') return;
+    if (!childId || !householdId) return;
 
     setError(null);
     setSubmitting(true);
     const { error: insertError } = await supabase.from('rule_instance').insert(
       slots.map((slot, index) => ({
-        child_id: onboarding.childId,
+        child_id: childId,
         template_id: slot.templateId,
         label: slot.label,
         short_label: slot.shortLabel,
@@ -143,14 +159,18 @@ export default function ProposeRules() {
     const idsRetenus = slots.map((slot) => slot.templateId);
     for (const templateId of proposesInitialement) {
       enregistrerEvenement(
-        onboarding.householdId,
+        householdId,
         idsRetenus.includes(templateId) ? 'rule_kept' : 'rule_discarded',
         { templateId },
         ageEnfant
       );
     }
 
-    router.replace('/');
+    if (modeAjoutSupplementaire) {
+      router.replace(`/(auth)/propose-rewards?childId=${childId}&householdId=${householdId}`);
+    } else {
+      router.replace('/');
+    }
   }
 
   const idsUtilises = slots.map((slot) => slot.templateId);

@@ -2,6 +2,10 @@ export const parametres = {
   'parametres.title': 'Réglages',
   'parametres.openParametres': 'Réglages',
 
+  'parametres.addChildTitle': 'Ajouter un enfant',
+  'parametres.addChildBody': 'Crée un nouveau tableau, avec ses propres habitudes et récompenses.',
+  'parametres.addChildButton': 'Ajouter un enfant',
+
   'parametres.exportTitle': 'Exporter mes données',
   'parametres.exportBody': 'Récupère toutes les données de ton foyer dans un fichier que tu peux garder ou transmettre.',
   'parametres.exportButton': 'Exporter',

@@ -86,6 +86,18 @@ export default function Parametres() {
 
       <View style={styles.body}>
         <View style={styles.card}>
+          <Text style={styles.cardText}>{strings['parametres.addChildTitle']}</Text>
+          <Text style={styles.cardBody}>{strings['parametres.addChildBody']}</Text>
+          <TouchableOpacity
+            style={styles.actionSecondary}
+            onPress={() => router.push(`/(auth)/add-child?householdId=${householdId}`)}
+            disabled={!householdId}
+          >
+            <Text style={styles.actionSecondaryLabel}>{strings['parametres.addChildButton']}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.cardText}>{strings['parametres.exportTitle']}</Text>
           <Text style={styles.cardBody}>{strings['parametres.exportBody']}</Text>
           {exportErreur ? <Text style={styles.error}>{strings['parametres.exportError']}</Text> : null}

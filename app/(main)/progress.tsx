@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import ChildSwitcher from '../../components/ChildSwitcher';
 import ScreenHeader from '../../components/ScreenHeader';
+import { useActiveChild } from '../../data/activeChild';
 import { fetchProgressView, type ProgressView } from '../../data/repositories/progressRepository';
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
@@ -27,7 +29,8 @@ export default function Progress() {
   const [error, setError] = useState(false);
 
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
-  const childId = onboarding.status === 'ready' ? onboarding.childId : null;
+  const { activeChildId } = useActiveChild();
+  const childId = activeChildId;
 
   useEffect(() => {
     if (!householdId) return;
@@ -79,6 +82,7 @@ export default function Progress() {
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
       <ScreenHeader title={strings['progress.title']} />
+      <ChildSwitcher />
 
       <View style={styles.body}>
         <View style={styles.windowRow}>

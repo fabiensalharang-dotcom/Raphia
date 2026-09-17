@@ -10,6 +10,8 @@ import { attribuerRecompense, fetchGrantForDayEntry } from '../../data/repositor
 import { supabase } from '../../data/supabaseClient';
 import { enregistrerEvenement } from '../../data/telemetry';
 import { strings } from '../../i18n/fr-FR';
+import { colors, couleurCategorie } from '../../theme/colors';
+import { fonts } from '../../theme/typography';
 
 // §7.2 : les 6 temps de la séquence, dans l'ordre. « threshold » et
 // « streak » ne font partie du montage que lorsque leur condition est
@@ -221,16 +223,18 @@ export default function Display() {
             key={rule.shortLabel}
             style={[
               styles.ruleCard,
-              rule.isThematic && styles.ruleCardThematic,
+              { backgroundColor: couleurCategorie(rule.category) },
               rule.etat === 'not_applicable' && styles.ruleCardMuted,
             ]}
           >
-            <Ionicons
-              name={nomIoniconPour(rule.icon)}
-              size={40}
-              color={rule.etat === 'respected' ? '#4ADE80' : '#6B7280'}
-            />
+            {rule.isThematic && <Text style={styles.ruleBadge}>{strings['today.thematicBadge']}</Text>}
+            <Ionicons name={nomIoniconPour(rule.icon)} size={40} color="#fff" />
             <Text style={styles.ruleLabel}>{rule.shortLabel}</Text>
+            {rule.etat === 'respected' && (
+              <View style={styles.ruleCheck}>
+                <Ionicons name="checkmark" size={16} color={colors.ink} />
+              </View>
+            )}
           </View>
         ))}
       </View>
@@ -240,7 +244,7 @@ export default function Display() {
           <Text style={styles.acquiredTitle}>{strings['display.acquired']}</Text>
           <View style={styles.acquiredIcons}>
             {state.acquiredRules.map((rule) => (
-              <Ionicons key={rule.shortLabel} name={nomIoniconPour(rule.icon)} size={20} color="#9CA3AF" />
+              <Ionicons key={rule.shortLabel} name={nomIoniconPour(rule.icon)} size={20} color={colors.inkMuted} />
             ))}
           </View>
         </View>
@@ -248,7 +252,7 @@ export default function Display() {
 
       {visibles.has('streak') && state.streak && (
         <View style={styles.streakBadge}>
-          <Ionicons name={nomIoniconPour(state.streak.icon)} size={28} color="#FBBF24" />
+          <Ionicons name={nomIoniconPour(state.streak.icon)} size={28} color={colors.accent} />
           <Text style={styles.streakDays}>{state.streak.days}</Text>
         </View>
       )}
@@ -327,7 +331,7 @@ export default function Display() {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: colors.background,
   },
   container: {
     flexGrow: 1,
@@ -345,25 +349,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   childName: {
-    color: '#E5E7EB',
-    fontSize: 28,
-    fontWeight: '600',
+    color: colors.ink,
+    fontFamily: fonts.cursive,
+    fontSize: 32,
   },
   score: {
-    color: '#FFFFFF',
+    color: colors.accent,
+    fontFamily: fonts.bodyExtraBold,
     fontSize: 160,
-    fontWeight: '800',
     lineHeight: 180,
   },
   gaugeTrack: {
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.border,
     overflow: 'hidden',
   },
   gaugeFill: {
     height: '100%',
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.accent,
   },
   rulesRow: {
     flexDirection: 'row',
@@ -372,32 +376,51 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   ruleCard: {
+    position: 'relative',
     alignItems: 'center',
     gap: 6,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#374151',
-    minWidth: 120,
-  },
-  ruleCardThematic: {
-    borderColor: '#60A5FA',
+    padding: 14,
+    borderRadius: 16,
+    minWidth: 130,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   ruleCardMuted: {
-    opacity: 0.5,
+    opacity: 0.45,
+  },
+  ruleBadge: {
+    color: '#fff',
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    textTransform: 'uppercase',
   },
   ruleLabel: {
-    color: '#E5E7EB',
+    color: '#fff',
+    fontFamily: fonts.bodyBold,
     fontSize: 18,
-    fontWeight: '600',
     textAlign: 'center',
+  },
+  ruleCheck: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   acquiredRow: {
     alignItems: 'center',
     gap: 4,
   },
   acquiredTitle: {
-    color: '#6B7280',
+    color: colors.inkMuted,
+    fontFamily: fonts.bodyMedium,
     fontSize: 14,
   },
   acquiredIcons: {
@@ -409,15 +432,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#1F2937',
+    backgroundColor: colors.accentSoft,
     borderRadius: 16,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
   streakDays: {
-    color: '#FBBF24',
+    color: colors.accent,
+    fontFamily: fonts.bodyExtraBold,
     fontSize: 24,
-    fontWeight: '800',
   },
   weekStrip: {
     flexDirection: 'row',
@@ -428,13 +451,13 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#374151',
+    backgroundColor: colors.border,
   },
   weekDotMet: {
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.accent,
   },
   weekDotNotMet: {
-    backgroundColor: '#4B5563',
+    backgroundColor: colors.inkMuted,
   },
   rewardSection: {
     alignItems: 'center',
@@ -444,20 +467,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   rewardTag: {
-    color: '#9CA3AF',
+    color: colors.accent,
+    fontFamily: fonts.bodyBold,
     fontSize: 14,
-    fontWeight: '600',
     textTransform: 'uppercase',
   },
   rewardPrompt: {
-    color: '#E5E7EB',
+    color: colors.ink,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 20,
-    fontWeight: '600',
   },
   rewardChosen: {
-    color: '#4ADE80',
+    color: colors.accent,
+    fontFamily: fonts.bodyBold,
     fontSize: 28,
-    fontWeight: '700',
     textAlign: 'center',
   },
   rewardOptions: {
@@ -468,18 +491,19 @@ const styles = StyleSheet.create({
   },
   rewardOption: {
     borderWidth: 2,
-    borderColor: '#4ADE80',
-    borderRadius: 12,
+    borderColor: colors.accent,
+    borderRadius: 100,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   rewardOptionLabel: {
-    color: '#4ADE80',
+    color: colors.accent,
+    fontFamily: fonts.bodyBold,
     fontSize: 16,
-    fontWeight: '600',
   },
   errorText: {
-    color: '#E5E7EB',
+    color: colors.danger,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 24,
     textAlign: 'center',
     marginTop: 40,
