@@ -19,6 +19,27 @@ const PROMESSES = [
   'onboarding.consent.promise.digest',
 ] as const;
 
+type PointConformite = {
+  icon: keyof typeof Ionicons.glyphMap;
+  titleKey: 'onboarding.consent.dataCollected.title' | 'onboarding.consent.purpose.title' | 'onboarding.consent.hosting.title' | 'onboarding.consent.retention.title' | 'onboarding.consent.rights.title';
+  shortKey: 'onboarding.consent.dataCollected.short' | 'onboarding.consent.purpose.short' | 'onboarding.consent.hosting.short' | 'onboarding.consent.retention.short' | 'onboarding.consent.rights.short';
+  bodyKey: 'onboarding.consent.dataCollected.body' | 'onboarding.consent.purpose.body' | 'onboarding.consent.hosting.body' | 'onboarding.consent.retention.body' | 'onboarding.consent.rights.body';
+};
+
+const POINTS_CONFORMITE: PointConformite[] = [
+  { icon: 'list-outline', titleKey: 'onboarding.consent.dataCollected.title', shortKey: 'onboarding.consent.dataCollected.short', bodyKey: 'onboarding.consent.dataCollected.body' },
+  { icon: 'bulb-outline', titleKey: 'onboarding.consent.purpose.title', shortKey: 'onboarding.consent.purpose.short', bodyKey: 'onboarding.consent.purpose.body' },
+  { icon: 'location-outline', titleKey: 'onboarding.consent.hosting.title', shortKey: 'onboarding.consent.hosting.short', bodyKey: 'onboarding.consent.hosting.body' },
+  { icon: 'time-outline', titleKey: 'onboarding.consent.retention.title', shortKey: 'onboarding.consent.retention.short', bodyKey: 'onboarding.consent.retention.body' },
+  { icon: 'shield-checkmark-outline', titleKey: 'onboarding.consent.rights.title', shortKey: 'onboarding.consent.rights.short', bodyKey: 'onboarding.consent.rights.body' },
+];
+
+function paires<T>(items: T[]): T[][] {
+  const resultat: T[][] = [];
+  for (let i = 0; i < items.length; i += 2) resultat.push(items.slice(i, i + 2));
+  return resultat;
+}
+
 const CONSENT_POLICY_VERSION = '1.0';
 
 function deviceTimezone(): string {
@@ -80,26 +101,15 @@ export default function Consent() {
           ))}
         </View>
 
-        <Section
-          title={strings['onboarding.consent.dataCollected.title']}
-          body={strings['onboarding.consent.dataCollected.body']}
-        />
-        <Section
-          title={strings['onboarding.consent.purpose.title']}
-          body={strings['onboarding.consent.purpose.body']}
-        />
-        <Section
-          title={strings['onboarding.consent.hosting.title']}
-          body={strings['onboarding.consent.hosting.body']}
-        />
-        <Section
-          title={strings['onboarding.consent.retention.title']}
-          body={strings['onboarding.consent.retention.body']}
-        />
-        <Section
-          title={strings['onboarding.consent.rights.title']}
-          body={strings['onboarding.consent.rights.body']}
-        />
+        <View style={styles.complianceGrid}>
+          {paires(POINTS_CONFORMITE).map((ligne) => (
+            <View key={ligne.map((p) => p.titleKey).join('+')} style={styles.complianceRow}>
+              {ligne.map((point) => (
+                <CompliancePoint key={point.titleKey} point={point} />
+              ))}
+            </View>
+          ))}
+        </View>
 
         <View style={styles.card}>
           <TextInput
@@ -125,12 +135,21 @@ export default function Consent() {
   );
 }
 
-function Section({ title, body }: { title: string; body: string }) {
+function CompliancePoint({ point }: { point: PointConformite }) {
+  const [ouvert, setOuvert] = useState(false);
+
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionBody}>{body}</Text>
-    </View>
+    <TouchableOpacity style={styles.compliancePoint} onPress={() => setOuvert((v) => !v)} activeOpacity={0.7}>
+      <View style={styles.compliancePointHeader}>
+        <Ionicons name={point.icon} size={18} color={colors.accent} />
+        <Text style={styles.compliancePointTitle}>{strings[point.titleKey]}</Text>
+      </View>
+      <Text style={styles.compliancePointShort}>{strings[point.shortKey]}</Text>
+      {ouvert && <Text style={styles.compliancePointBody}>{strings[point.bodyKey]}</Text>}
+      <Text style={styles.compliancePointToggle}>
+        {ouvert ? strings['onboarding.consent.readLess'] : strings['onboarding.consent.readMore']}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -171,26 +190,52 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.ink,
   },
-  section: {
-    backgroundColor: colors.surface,
-    borderRadius: 22,
-    padding: 18,
-    gap: 6,
-    shadowColor: colors.ink,
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+  complianceGrid: {
+    gap: 10,
   },
-  sectionTitle: {
+  complianceRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  compliancePoint: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 12,
+    gap: 4,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
+  },
+  compliancePointHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  compliancePointTitle: {
+    flex: 1,
     fontFamily: fonts.bodyBold,
-    fontSize: 16,
+    fontSize: 13,
     color: colors.ink,
   },
-  sectionBody: {
+  compliancePointShort: {
     fontFamily: fonts.bodyMedium,
-    fontSize: 14,
+    fontSize: 12,
     color: colors.inkMuted,
+  },
+  compliancePointBody: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.inkMuted,
+    marginTop: 2,
+  },
+  compliancePointToggle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 11,
+    color: colors.accent,
+    marginTop: 2,
   },
   card: {
     backgroundColor: colors.surface,
