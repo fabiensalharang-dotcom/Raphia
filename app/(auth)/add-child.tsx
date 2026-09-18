@@ -5,10 +5,27 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
+import ColorPicker from '../../components/ColorPicker';
 import { DateField } from '../../components/DateField';
 import ScreenHeader from '../../components/ScreenHeader';
+import { accentColorsFor, DEFAULT_ACCENT_KEY, type AccentColorKey } from '../../theme/accentPalette';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
+
+const AGE_MIN = 5;
+const AGE_MAX = 11;
+
+// §1.1 : l'app cible les enfants de 5 à 11 ans — borner le sélecteur de
+// date évite qu'un enfant hors tranche soit créé sans aucune habitude
+// disponible dans le référentiel pour son âge.
+function bornesDateNaissance(): { minimumDate: Date; maximumDate: Date } {
+  const aujourdHui = new Date();
+  const minimumDate = new Date(aujourdHui);
+  minimumDate.setFullYear(aujourdHui.getFullYear() - AGE_MAX);
+  const maximumDate = new Date(aujourdHui);
+  maximumDate.setFullYear(aujourdHui.getFullYear() - AGE_MIN);
+  return { minimumDate, maximumDate };
+}
 
 export default function AddChild() {
   const onboarding = useOnboardingState();
@@ -19,8 +36,10 @@ export default function AddChild() {
   const modeAjoutSupplementaire = typeof params.householdId === 'string';
   const [firstName, setFirstName] = useState('');
   const [birthDate, setBirthDate] = useState<Date | null>(null);
+  const [themeColor, setThemeColor] = useState<AccentColorKey>(DEFAULT_ACCENT_KEY);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const accent = accentColorsFor(themeColor).accent;
 
   if (onboarding.status === 'signed-out') {
     return <Redirect href="/(auth)/sign-in" />;
@@ -56,6 +75,7 @@ export default function AddChild() {
         household_id: householdId,
         first_name: firstName,
         birth_date: birthDate.toISOString().slice(0, 10),
+        settings: { themeColor },
       })
       .select('id')
       .single();
@@ -73,7 +93,7 @@ export default function AddChild() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
-      <ScreenHeader title={strings['onboarding.addChild.title']} />
+      <ScreenHeader title={strings['onboarding.addChild.title']} accentColor={accent} />
 
       <View style={styles.body}>
         <View style={styles.card}>
@@ -89,13 +109,18 @@ export default function AddChild() {
             value={birthDate}
             onChange={setBirthDate}
             placeholder={strings['onboarding.addChild.field.birthDate']}
-            maximumDate={new Date()}
+            minimumDate={bornesDateNaissance().minimumDate}
+            maximumDate={bornesDateNaissance().maximumDate}
           />
+          <Text style={styles.hint}>{strings['onboarding.addChild.ageHint']}</Text>
+
+          <Text style={styles.colorLabel}>{strings['onboarding.addChild.colorLabel']}</Text>
+          <ColorPicker value={themeColor} onChange={setThemeColor} />
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, { backgroundColor: accent }]}
             onPress={handleSubmit}
             disabled={submitting || firstName.trim().length === 0 || !birthDate}
           >
@@ -148,5 +173,17 @@ const styles = StyleSheet.create({
   error: {
     color: colors.danger,
     fontFamily: fonts.bodyMedium,
+  },
+  hint: {
+    color: colors.inkMuted,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    marginTop: -4,
+  },
+  colorLabel: {
+    color: colors.ink,
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    marginTop: 4,
   },
 });

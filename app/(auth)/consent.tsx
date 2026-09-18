@@ -93,6 +93,7 @@ export default function Consent() {
       <View style={styles.body}>
         <View style={styles.promiseCard}>
           <Text style={styles.promiseTitle}>{strings['onboarding.consent.promise.title']}</Text>
+          <Text style={styles.promiseSubtitle}>{strings['onboarding.consent.promise.subtitle']}</Text>
           <View style={styles.promiseGrid}>
             {paires(PROMESSES).map((ligne) => (
               <View key={ligne.map((p) => p.cle).join('+')} style={styles.promiseRowGrid}>
@@ -184,6 +185,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.cursive,
     fontSize: 20,
     color: colors.ink,
+  },
+  promiseSubtitle: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.inkMuted,
+    marginTop: -8,
   },
   promiseGrid: {
     gap: 14,

@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 import { useActiveChild } from '../data/activeChild';
-import { colors } from '../theme/colors';
+import { accentColorsFor } from '../theme/accentPalette';
 import { fonts } from '../theme/typography';
 
 export default function ChildSwitcher() {
@@ -13,13 +13,14 @@ export default function ChildSwitcher() {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.container}>
       {children.map((enfant) => {
         const actif = enfant.id === activeChildId;
+        const { accent } = accentColorsFor(enfant.themeColor);
         return (
           <TouchableOpacity
             key={enfant.id}
-            style={[styles.pill, actif && styles.pillActive]}
+            style={[styles.pill, { borderColor: accent }, actif && { backgroundColor: accent }]}
             onPress={() => setActiveChildId(enfant.id)}
           >
-            <Text style={[styles.pillLabel, actif && styles.pillLabelActive]}>{enfant.firstName}</Text>
+            <Text style={[styles.pillLabel, { color: actif ? '#fff' : accent }]}>{enfant.firstName}</Text>
           </TouchableOpacity>
         );
       })}
@@ -36,20 +37,12 @@ const styles = StyleSheet.create({
   },
   pill: {
     borderWidth: 1.5,
-    borderColor: colors.accent,
     borderRadius: 100,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
-  pillActive: {
-    backgroundColor: colors.accent,
-  },
   pillLabel: {
-    color: colors.accent,
     fontFamily: fonts.bodyBold,
     fontSize: 13,
-  },
-  pillLabelActive: {
-    color: '#fff',
   },
 });

@@ -1,5 +1,6 @@
 import { calculerSerieEnCours, estDernierJourDeLaSemaine, type EtatRegle, type JourDeSerie } from '../../core/scoring';
 import type { RuleCategory } from '../../core/referential/types';
+import type { AccentColorKey } from '../../theme/accentPalette';
 import { fetchDayEntry } from './dayEntryRepository';
 import { fetchAvailableRewards, fetchGrantForDayEntry, type GrantedReward, type RewardInstanceOption } from './rewardGrantRepository';
 import { creerResumeSiAbsent } from './weekSummaryRepository';
@@ -11,6 +12,8 @@ export type DisplayRuleState = {
   category: RuleCategory;
   isThematic: boolean;
   etat: EtatRegle;
+  points: number;
+  bonusValue: number;
 };
 
 export type DisplayAcquiredRule = {
@@ -40,6 +43,7 @@ export type DisplayWeeklyRewardState = DisplayRewardState & {
 
 export type DisplayState = {
   childFirstName: string;
+  themeColor: AccentColorKey | null;
   dayEntryId: string;
   score: number;
   thresholdApplied: number;
@@ -207,6 +211,7 @@ export async function fetchDisplayState(childId: string): Promise<DisplayState> 
 
   return {
     childFirstName: child.first_name,
+    themeColor: (child.settings as { themeColor?: AccentColorKey } | null)?.themeColor ?? null,
     dayEntryId: dayEntry?.dayEntryId ?? '',
     score: dayEntry?.pointsTotal ?? 0,
     thresholdApplied: dayEntry?.thresholdApplied ?? 0,
@@ -217,6 +222,8 @@ export async function fetchDisplayState(childId: string): Promise<DisplayState> 
       category: c.category,
       isThematic: c.isThematic,
       etat: c.etat,
+      points: c.points,
+      bonusValue: c.bonusValue,
     })),
     acquiredRules: (acquisesRes.data ?? []).map((r) => ({ shortLabel: r.short_label, icon: r.icon })),
     weekStrip,

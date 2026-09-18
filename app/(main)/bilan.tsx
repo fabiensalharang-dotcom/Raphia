@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
@@ -54,8 +54,9 @@ function rendreGabarit(cle: string, variante: number, slots: Record<string, unkn
 
 export default function Bilan() {
   const onboarding = useOnboardingState();
-  const { activeChildId } = useActiveChild();
+  const { activeChildId, activeAccent } = useActiveChild();
   const childId = activeChildId;
+  const accentStyles = useMemo(() => makeAccentStyles(activeAccent.accent), [activeAccent.accent]);
   const [digest, setDigest] = useState<DailyDigestData | null | undefined>(undefined);
   const [weeklyDigest, setWeeklyDigest] = useState<WeeklyDigestData | null>(null);
   const [streakDays, setStreakDays] = useState<number | null>(null);
@@ -139,7 +140,7 @@ export default function Bilan() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
-      <ScreenHeader title={strings['bilan.title']} />
+      <ScreenHeader title={strings['bilan.title']} accentColor={activeAccent.accent} />
       <ChildSwitcher />
 
       <View style={styles.body}>
@@ -154,7 +155,7 @@ export default function Bilan() {
           </Text>
 
           <View style={styles.block}>
-            <Text style={styles.blockTitle}>{strings['bilan.heldToday']}</Text>
+            <Text style={accentStyles.blockTitle}>{strings['bilan.heldToday']}</Text>
             <Text style={styles.blockBody}>
               {digest.heldRuleLabels.length > 0 ? digest.heldRuleLabels.join(' · ') : strings['bilan.noRuleHeld']}
             </Text>
@@ -165,17 +166,17 @@ export default function Bilan() {
           </View>
 
           <View style={styles.block}>
-            <Text style={styles.blockTitle}>{strings['bilan.toNotice']}</Text>
+            <Text style={accentStyles.blockTitle}>{strings['bilan.toNotice']}</Text>
             <Text style={styles.blockBody}>{rendreGabarit(digest.templateKey, digest.templateVariant, digest.slots)}</Text>
           </View>
 
           <View style={styles.block}>
-            <Text style={styles.blockTitle}>{strings['bilan.tomorrow']}</Text>
+            <Text style={accentStyles.blockTitle}>{strings['bilan.tomorrow']}</Text>
             <Text style={styles.blockBody}>{rendreGabarit(digest.questionKey, digest.questionVariant, digest.slots)}</Text>
           </View>
 
           {!partageOuvert ? (
-            <TouchableOpacity style={styles.shareButton} onPress={() => setPartageOuvert(true)}>
+            <TouchableOpacity style={accentStyles.shareButton} onPress={() => setPartageOuvert(true)}>
               <Text style={styles.shareButtonText}>{strings['bilan.share']}</Text>
             </TouchableOpacity>
           ) : (
@@ -188,13 +189,13 @@ export default function Bilan() {
                 thresholdApplied={digest.thresholdApplied}
                 streakDays={streakDays}
               />
-              <TouchableOpacity style={styles.shareToggle} onPress={() => setNomMasque((v) => !v)}>
-                <Text style={styles.shareToggleText}>
+              <TouchableOpacity style={accentStyles.shareToggle} onPress={() => setNomMasque((v) => !v)}>
+                <Text style={accentStyles.shareToggleText}>
                   {nomMasque ? strings['bilan.shareShowName'] : strings['bilan.shareHideName']}
                 </Text>
               </TouchableOpacity>
               {erreurPartage ? <Text style={styles.error}>{erreurPartage}</Text> : null}
-              <TouchableOpacity style={styles.shareButton} onPress={partager} disabled={partageEnCours}>
+              <TouchableOpacity style={accentStyles.shareButton} onPress={partager} disabled={partageEnCours}>
                 <Text style={styles.shareButtonText}>{strings['bilan.shareAction']}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setPartageOuvert(false)}>
@@ -212,10 +213,13 @@ export default function Bilan() {
           </Text>
           <View style={styles.block}>
             <Text style={styles.blockBody}>
-              {remplir(strings['bilan.weekly.pointsSummary'], {
-                points: weeklySlots.points as number,
-                daysThresholdMet: weeklySlots.daysThresholdMet as number,
-              })}
+              {remplir(
+                strings[weeklySlots.daysThresholdMet === 1 ? 'bilan.weekly.pointsSummary.one' : 'bilan.weekly.pointsSummary.other'],
+                {
+                  points: weeklySlots.points as number,
+                  daysThresholdMet: weeklySlots.daysThresholdMet as number,
+                }
+              )}
             </Text>
             {weeklySlots.mostRegularRuleLabel ? (
               <Text style={styles.blockBody}>
@@ -245,6 +249,36 @@ export default function Bilan() {
       </View>
     </ScrollView>
   );
+}
+
+function makeAccentStyles(accent: string) {
+  return StyleSheet.create({
+    blockTitle: {
+      fontSize: 12,
+      fontFamily: fonts.bodyBold,
+      color: accent,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    shareButton: {
+      backgroundColor: accent,
+      borderRadius: 100,
+      padding: 14,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    shareToggle: {
+      borderWidth: 1.5,
+      borderColor: accent,
+      borderRadius: 100,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    shareToggleText: {
+      color: accent,
+      fontFamily: fonts.bodyBold,
+    },
+  });
 }
 
 const styles = StyleSheet.create({
@@ -286,24 +320,10 @@ const styles = StyleSheet.create({
   block: {
     gap: 6,
   },
-  blockTitle: {
-    fontSize: 12,
-    fontFamily: fonts.bodyBold,
-    color: colors.accent,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
   blockBody: {
     fontSize: 15,
     fontFamily: fonts.bodyMedium,
     color: colors.ink,
-  },
-  shareButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 100,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 8,
   },
   shareButtonText: {
     color: '#fff',
@@ -313,17 +333,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginTop: 8,
-  },
-  shareToggle: {
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    borderRadius: 100,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  shareToggleText: {
-    color: colors.accent,
-    fontFamily: fonts.bodyBold,
   },
   shareCloseText: {
     color: colors.inkMuted,

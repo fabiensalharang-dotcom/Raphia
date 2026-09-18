@@ -5,13 +5,16 @@ import { fonts } from '../theme/typography';
 
 type ScreenHeaderProps = {
   title: string;
+  accentColor?: string;
 };
 
 // En-tête partagé entre les écrans d'onglet (hors "Aujourd'hui", qui a son
 // propre en-tête avec Pousse) — même bande courbée que la direction validée.
-export default function ScreenHeader({ title }: ScreenHeaderProps) {
+// accentColor est optionnel : les écrans sans enfant actif (inscription,
+// connexion) gardent la couleur par défaut.
+export default function ScreenHeader({ title, accentColor }: ScreenHeaderProps) {
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, accentColor ? { backgroundColor: accentColor } : null]}>
       <Text style={styles.title}>{title}</Text>
     </View>
   );

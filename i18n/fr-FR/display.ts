@@ -1,4 +1,5 @@
 export const display = {
+  'display.exit': 'Sortir',
   'display.acquired': 'Déjà acquis',
   'display.error': "Impossible d'afficher cet enfant.",
   'today.switchToDisplay': "Passer en affichage",

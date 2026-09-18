@@ -1,22 +1,38 @@
 import { Redirect, router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import ChildSwitcher from '../../components/ChildSwitcher';
+import ColorPicker from '../../components/ColorPicker';
 import ScreenHeader from '../../components/ScreenHeader';
+import { useActiveChild } from '../../data/activeChild';
 import { exporterDonneesFoyer, supprimerCompte } from '../../data/repositories/accountRepository';
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
+import { DEFAULT_ACCENT_KEY, type AccentColorKey } from '../../theme/accentPalette';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
 
 export default function Parametres() {
   const onboarding = useOnboardingState();
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
+  const { activeChildId, activeAccent, children, refreshChildren } = useActiveChild();
+  const enfantActif = children.find((c) => c.id === activeChildId);
+  const couleurActuelle = enfantActif?.themeColor ?? DEFAULT_ACCENT_KEY;
+  const accentStyles = useMemo(() => makeAccentStyles(activeAccent.accent), [activeAccent.accent]);
   const [exportEnCours, setExportEnCours] = useState(false);
   const [exportErreur, setExportErreur] = useState(false);
   const [suppressionEnCours, setSuppressionEnCours] = useState(false);
   const [suppressionErreur, setSuppressionErreur] = useState(false);
+
+  async function changerCouleur(cle: AccentColorKey) {
+    if (!activeChildId) return;
+    const { data: enfant } = await supabase.from('child').select('settings').eq('id', activeChildId).single();
+    const settingsExistants = (enfant?.settings as Record<string, unknown>) ?? {};
+    await supabase.from('child').update({ settings: { ...settingsExistants, themeColor: cle } }).eq('id', activeChildId);
+    await refreshChildren();
+  }
 
   async function exporter() {
     if (!householdId) return;
@@ -82,18 +98,41 @@ export default function Parametres() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
-      <ScreenHeader title={strings['parametres.title']} />
+      <ScreenHeader title={strings['parametres.title']} accentColor={activeAccent.accent} />
+      <ChildSwitcher />
 
       <View style={styles.body}>
+        {enfantActif && (
+          <View style={styles.card}>
+            <Text style={styles.cardText}>
+              {strings['parametres.colorTitle']} {enfantActif.firstName}
+            </Text>
+            <Text style={styles.cardBody}>{strings['parametres.colorBody']}</Text>
+            <ColorPicker value={couleurActuelle} onChange={changerCouleur} />
+          </View>
+        )}
+
         <View style={styles.card}>
           <Text style={styles.cardText}>{strings['parametres.addChildTitle']}</Text>
           <Text style={styles.cardBody}>{strings['parametres.addChildBody']}</Text>
           <TouchableOpacity
-            style={styles.actionSecondary}
+            style={accentStyles.actionSecondary}
             onPress={() => router.push(`/(auth)/add-child?householdId=${householdId}`)}
             disabled={!householdId}
           >
-            <Text style={styles.actionSecondaryLabel}>{strings['parametres.addChildButton']}</Text>
+            <Text style={accentStyles.actionSecondaryLabel}>{strings['parametres.addChildButton']}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardText}>{strings['parametres.referentielTitle']}</Text>
+          <Text style={styles.cardBody}>{strings['parametres.referentielBody']}</Text>
+          <TouchableOpacity
+            style={accentStyles.actionSecondary}
+            onPress={() => router.push(`/(main)/referentiel?childId=${activeChildId}`)}
+            disabled={!activeChildId}
+          >
+            <Text style={accentStyles.actionSecondaryLabel}>{strings['parametres.referentielButton']}</Text>
           </TouchableOpacity>
         </View>
 
@@ -101,8 +140,8 @@ export default function Parametres() {
           <Text style={styles.cardText}>{strings['parametres.exportTitle']}</Text>
           <Text style={styles.cardBody}>{strings['parametres.exportBody']}</Text>
           {exportErreur ? <Text style={styles.error}>{strings['parametres.exportError']}</Text> : null}
-          <TouchableOpacity style={styles.actionSecondary} onPress={exporter} disabled={exportEnCours}>
-            <Text style={styles.actionSecondaryLabel}>
+          <TouchableOpacity style={accentStyles.actionSecondary} onPress={exporter} disabled={exportEnCours}>
+            <Text style={accentStyles.actionSecondaryLabel}>
               {exportEnCours ? strings['parametres.exportInProgress'] : strings['parametres.exportButton']}
             </Text>
           </TouchableOpacity>
@@ -120,11 +159,34 @@ export default function Parametres() {
         </View>
 
         <TouchableOpacity onPress={() => supabase.auth.signOut()}>
-          <Text style={styles.signOut}>{strings['today.signOut']}</Text>
+          <Text style={accentStyles.signOut}>{strings['today.signOut']}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
+}
+
+function makeAccentStyles(accent: string) {
+  return StyleSheet.create({
+    actionSecondary: {
+      borderWidth: 1.5,
+      borderColor: accent,
+      borderRadius: 100,
+      padding: 12,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    actionSecondaryLabel: {
+      color: accent,
+      fontFamily: fonts.bodyBold,
+    },
+    signOut: {
+      color: accent,
+      fontFamily: fonts.bodySemiBold,
+      textAlign: 'center',
+      marginTop: 8,
+    },
+  });
 }
 
 const styles = StyleSheet.create({
@@ -160,18 +222,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyMedium,
     color: colors.inkMuted,
   },
-  actionSecondary: {
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    borderRadius: 100,
-    padding: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  actionSecondaryLabel: {
-    color: colors.accent,
-    fontFamily: fonts.bodyBold,
-  },
   actionDanger: {
     borderWidth: 1.5,
     borderColor: colors.danger,
@@ -183,11 +233,5 @@ const styles = StyleSheet.create({
   actionDangerLabel: {
     color: colors.danger,
     fontFamily: fonts.bodyBold,
-  },
-  signOut: {
-    color: colors.accent,
-    fontFamily: fonts.bodySemiBold,
-    textAlign: 'center',
-    marginTop: 8,
   },
 });

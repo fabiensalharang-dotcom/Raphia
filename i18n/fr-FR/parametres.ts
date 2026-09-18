@@ -2,9 +2,16 @@ export const parametres = {
   'parametres.title': 'Réglages',
   'parametres.openParametres': 'Réglages',
 
+  'parametres.colorTitle': 'La couleur de',
+  'parametres.colorBody': 'Change la couleur de son tableau à tout moment.',
+
   'parametres.addChildTitle': 'Ajouter un enfant',
   'parametres.addChildBody': 'Crée un nouveau tableau, avec ses propres habitudes et récompenses.',
   'parametres.addChildButton': 'Ajouter un enfant',
+
+  'parametres.referentielTitle': 'Le référentiel',
+  'parametres.referentielBody': 'Parcours toutes les habitudes disponibles et ajoute-en une quand tu veux.',
+  'parametres.referentielButton': 'Voir le référentiel',
 
   'parametres.exportTitle': 'Exporter mes données',
   'parametres.exportBody': 'Récupère toutes les données de ton foyer dans un fichier que tu peux garder ou transmettre.',

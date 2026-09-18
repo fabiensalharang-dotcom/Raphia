@@ -53,6 +53,7 @@ export default function MainLayout() {
             tabBarIcon: ({ color, size }) => <Ionicons name="settings" color={color} size={size} />,
           }}
         />
+        <Tabs.Screen name="referentiel" options={{ href: null }} />
       </Tabs>
     </ActiveChildProvider>
   );

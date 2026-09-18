@@ -3,4 +3,5 @@ export type DateFieldProps = {
   onChange: (date: Date) => void;
   placeholder: string;
   maximumDate?: Date;
+  minimumDate?: Date;
 };

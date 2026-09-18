@@ -82,9 +82,13 @@ export default function SetThreshold() {
 
     setError(null);
     setSubmitting(true);
+    // §1.2 : la mise à jour doit fusionner avec les réglages existants
+    // (couleur choisie à l'étape précédente) plutôt que les écraser.
+    const { data: enfant } = await supabase.from('child').select('settings').eq('id', childId).single();
+    const settingsExistants = (enfant?.settings as Record<string, unknown>) ?? {};
     const { error: updateError } = await supabase
       .from('child')
-      .update({ settings: { dailyThreshold: seuil, weeklyThreshold: 5 } })
+      .update({ settings: { ...settingsExistants, dailyThreshold: seuil, weeklyThreshold: 5 } })
       .eq('id', childId);
     setSubmitting(false);
     if (updateError) {

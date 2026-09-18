@@ -4,4 +4,5 @@ import appName from '../../app-name.json';
 // cette chaîne, partagée avec la config native (app.config.ts).
 export const common = {
   'app.name': appName.value,
+  'common.confirm': 'Valider',
 };

@@ -6,6 +6,7 @@ import { onboarding } from './onboarding';
 import { parametres } from './parametres';
 import { pilotage } from './pilotage';
 import { progress } from './progress';
+import { referentiel } from './referentiel';
 import { today } from './today';
 
 export const strings = {
@@ -18,4 +19,5 @@ export const strings = {
   ...pilotage,
   ...bilan,
   ...parametres,
+  ...referentiel,
 };

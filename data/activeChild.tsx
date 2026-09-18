@@ -3,14 +3,16 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 import { supabase } from './supabaseClient';
 import { useOnboardingState } from './useOnboardingState';
+import { accentColorsFor, type AccentColorKey } from '../theme/accentPalette';
 
-export type HouseholdChild = { id: string; firstName: string };
+export type HouseholdChild = { id: string; firstName: string; themeColor: AccentColorKey | null };
 
 type ActiveChildContextValue = {
   children: HouseholdChild[];
   activeChildId: string | null;
   setActiveChildId: (id: string) => void;
   refreshChildren: () => Promise<void>;
+  activeAccent: { accent: string; accentSoft: string };
 };
 
 const ActiveChildContext = createContext<ActiveChildContextValue | null>(null);
@@ -29,12 +31,16 @@ export function ActiveChildProvider({ children: reactChildren }: { children: Rea
     if (!householdId) return;
     const { data, error } = await supabase
       .from('child')
-      .select('id, first_name')
+      .select('id, first_name, settings')
       .eq('household_id', householdId)
       .order('created_at', { ascending: true });
     if (error || !data) return;
 
-    const liste = data.map((c) => ({ id: c.id, firstName: c.first_name }));
+    const liste = data.map((c) => ({
+      id: c.id,
+      firstName: c.first_name,
+      themeColor: ((c.settings as { themeColor?: AccentColorKey } | null)?.themeColor ?? null) as AccentColorKey | null,
+    }));
     setChildrenList(liste);
     setActiveChildIdState((actuel) => (actuel && liste.some((c) => c.id === actuel) ? actuel : (liste[0]?.id ?? null)));
   }, [householdId]);
@@ -60,8 +66,13 @@ export function ActiveChildProvider({ children: reactChildren }: { children: Rea
     if (householdId) AsyncStorage.setItem(cleStockage(householdId), id);
   }
 
+  const enfantActif = childrenList.find((c) => c.id === activeChildId);
+  const activeAccent = accentColorsFor(enfantActif?.themeColor);
+
   return (
-    <ActiveChildContext.Provider value={{ children: childrenList, activeChildId, setActiveChildId, refreshChildren }}>
+    <ActiveChildContext.Provider
+      value={{ children: childrenList, activeChildId, setActiveChildId, refreshChildren, activeAccent }}
+    >
       {reactChildren}
     </ActiveChildContext.Provider>
   );

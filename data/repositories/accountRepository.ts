@@ -13,7 +13,7 @@ function rendreObservation(cle: string, variante: number, slots: Record<string, 
 // pas de banque de variantes, seules les valeurs des slots varient.
 function rendreBilanHebdomadaire(slots: Record<string, unknown>, rewardLabel: string | null): string[] {
   const lignes: string[] = [
-    remplir(strings['bilan.weekly.pointsSummary'], {
+    remplir(strings[(slots.daysThresholdMet as number) === 1 ? 'bilan.weekly.pointsSummary.one' : 'bilan.weekly.pointsSummary.other'], {
       points: slots.points as number,
       daysThresholdMet: slots.daysThresholdMet as number,
     }),

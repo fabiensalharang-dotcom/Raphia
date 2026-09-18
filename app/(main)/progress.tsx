@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Redirect } from 'expo-router';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -29,8 +29,9 @@ export default function Progress() {
   const [error, setError] = useState(false);
 
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
-  const { activeChildId } = useActiveChild();
+  const { activeChildId, activeAccent } = useActiveChild();
   const childId = activeChildId;
+  const accentStyles = useMemo(() => makeAccentStyles(activeAccent.accent), [activeAccent.accent]);
 
   useEffect(() => {
     if (!householdId) return;
@@ -81,7 +82,7 @@ export default function Progress() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
-      <ScreenHeader title={strings['progress.title']} />
+      <ScreenHeader title={strings['progress.title']} accentColor={activeAccent.accent} />
       <ChildSwitcher />
 
       <View style={styles.body}>
@@ -89,10 +90,10 @@ export default function Progress() {
           {FENETRES.map((valeur) => (
             <TouchableOpacity
               key={valeur}
-              style={[styles.windowButton, fenetre === valeur && styles.windowButtonSelected]}
+              style={[accentStyles.windowButton, fenetre === valeur && accentStyles.windowButtonSelected]}
               onPress={() => setFenetre(valeur)}
             >
-              <Text style={[styles.windowButtonLabel, fenetre === valeur && styles.windowButtonLabelSelected]}>
+              <Text style={[accentStyles.windowButtonLabel, fenetre === valeur && styles.windowButtonLabelSelected]}>
                 {LIBELLE_FENETRE[valeur]}
               </Text>
             </TouchableOpacity>
@@ -115,7 +116,7 @@ export default function Progress() {
                     return (
                       <View
                         key={jour.date}
-                        style={[styles.pointsBar, { height: hauteur }, jour.pointsTotal === null && styles.pointsBarVide]}
+                        style={[accentStyles.pointsBar, { height: hauteur }, jour.pointsTotal === null && styles.pointsBarVide]}
                       />
                     );
                   })}
@@ -134,10 +135,10 @@ export default function Progress() {
               <View key={regle.ruleInstanceId} style={styles.ruleRateRow}>
                 <View style={styles.ruleRateHeader}>
                   <Text style={styles.ruleRateLabel}>{regle.label}</Text>
-                  <Text style={styles.ruleRatePercent}>{Math.round(regle.tauxReussite * 100)} %</Text>
+                  <Text style={accentStyles.ruleRatePercent}>{Math.round(regle.tauxReussite * 100)} %</Text>
                 </View>
                 <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { width: `${regle.tauxReussite * 100}%` }]} />
+                  <View style={[accentStyles.barFill, { width: `${regle.tauxReussite * 100}%` }]} />
                 </View>
               </View>
             ))
@@ -155,7 +156,7 @@ export default function Progress() {
                   S{semaine.isoWeek} · {semaine.isoYear}
                 </Text>
                 <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { width: `${(semaine.daysThresholdMet / 7) * 100}%` }]} />
+                  <View style={[accentStyles.barFill, { width: `${(semaine.daysThresholdMet / 7) * 100}%` }]} />
                 </View>
                 <Text style={styles.weekCount}>
                   {semaine.daysThresholdMet}{' '}
@@ -170,6 +171,41 @@ export default function Progress() {
   );
 }
 
+function makeAccentStyles(accent: string) {
+  return StyleSheet.create({
+    windowButton: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderColor: accent,
+      borderRadius: 100,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    windowButtonSelected: {
+      backgroundColor: accent,
+    },
+    windowButtonLabel: {
+      color: accent,
+      fontFamily: fonts.bodyBold,
+    },
+    pointsBar: {
+      width: 6,
+      borderRadius: 3,
+      backgroundColor: accent,
+    },
+    ruleRatePercent: {
+      fontSize: 15,
+      fontFamily: fonts.bodyBold,
+      color: accent,
+      flexShrink: 0,
+    },
+    barFill: {
+      height: '100%',
+      backgroundColor: accent,
+    },
+  });
+}
+
 const styles = StyleSheet.create({
   container: {
     paddingBottom: 32,
@@ -181,21 +217,6 @@ const styles = StyleSheet.create({
   windowRow: {
     flexDirection: 'row',
     gap: 8,
-  },
-  windowButton: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    borderRadius: 100,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  windowButtonSelected: {
-    backgroundColor: colors.accent,
-  },
-  windowButtonLabel: {
-    color: colors.accent,
-    fontFamily: fonts.bodyBold,
   },
   windowButtonLabelSelected: {
     color: '#fff',
@@ -231,11 +252,6 @@ const styles = StyleSheet.create({
     gap: 3,
     height: 100,
   },
-  pointsBar: {
-    width: 6,
-    borderRadius: 3,
-    backgroundColor: colors.accent,
-  },
   pointsBarVide: {
     backgroundColor: colors.border,
   },
@@ -254,22 +270,12 @@ const styles = StyleSheet.create({
     color: colors.ink,
     flexShrink: 1,
   },
-  ruleRatePercent: {
-    fontSize: 15,
-    fontFamily: fonts.bodyBold,
-    color: colors.accent,
-    flexShrink: 0,
-  },
   barTrack: {
     flex: 1,
     height: 10,
     borderRadius: 5,
     backgroundColor: colors.background,
     overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
   },
   weekRow: {
     flexDirection: 'row',

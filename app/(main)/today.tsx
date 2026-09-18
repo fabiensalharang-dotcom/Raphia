@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import ChildSwitcher from '../../components/ChildSwitcher';
 import Pousse from '../../components/Pousse';
@@ -90,10 +90,11 @@ export default function Today() {
   const [childFirstName, setChildFirstName] = useState<string>('');
 
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
-  const { activeChildId, setActiveChildId, children: enfantsFoyer } = useActiveChild();
+  const { activeChildId, setActiveChildId, children: enfantsFoyer, activeAccent } = useActiveChild();
   const aPlusieursEnfants = enfantsFoyer.length > 1;
   const params = useLocalSearchParams<{ activateChildId?: string }>();
   const childId = activeChildId;
+  const accentStyles = useMemo(() => makeAccentStyles(activeAccent.accent), [activeAccent.accent]);
 
   // Arrivée depuis la configuration d'un enfant supplémentaire (Réglages) :
   // on bascule directement sur son tableau plutôt que de rester sur le
@@ -225,6 +226,23 @@ export default function Today() {
     setDayView(nouvelleVue);
   }
 
+  function confirmerCloture() {
+    if (!dayView || !modifiable) return;
+    const nonCochees = dayView.checks.filter((c) => c.etat === 'not_respected').length;
+    const cle =
+      nonCochees === 0 ? 'today.closeConfirmBody.zero' : nonCochees === 1 ? 'today.closeConfirmBody.one' : 'today.closeConfirmBody.other';
+    const message = strings[cle].replace('{count}', String(nonCochees));
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) cloturer();
+      return;
+    }
+    Alert.alert(strings['today.closeConfirmTitle'], message, [
+      { text: strings['today.closeConfirmCancel'], style: 'cancel' },
+      { text: strings['today.closeConfirmConfirm'], onPress: cloturer },
+    ]);
+  }
+
   async function cloturer() {
     if (!dayView || !modifiable) return;
     const nouvelleVue = await cloturerJournee(dayView);
@@ -269,7 +287,7 @@ export default function Today() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
-      <View style={styles.header}>
+      <View style={accentStyles.header}>
         <View style={styles.headerRow}>
           <Pousse size={46} />
           <View>
@@ -308,7 +326,7 @@ export default function Today() {
         <>
           <View style={styles.scoreCard}>
             <View style={styles.scoreRow}>
-              <Text style={styles.scoreNumber}>{dayView.pointsTotal}</Text>
+              <Text style={accentStyles.scoreNumber}>{dayView.pointsTotal}</Text>
               <Text style={styles.scoreSuffix}>
                 / {dayView.thresholdApplied} {strings['today.pointsSuffixLabel']}
               </Text>
@@ -316,12 +334,12 @@ export default function Today() {
             <View style={styles.gaugeTrack}>
               <View
                 style={[
-                  styles.gaugeFill,
+                  accentStyles.gaugeFill,
                   { width: `${Math.min(100, (dayView.pointsTotal / Math.max(1, dayView.thresholdApplied)) * 100)}%` },
                 ]}
               />
             </View>
-            {dayView.thresholdMet ? <Text style={styles.thresholdMet}>{strings['today.thresholdReached']}</Text> : null}
+            {dayView.thresholdMet ? <Text style={accentStyles.thresholdMet}>{strings['today.thresholdReached']}</Text> : null}
           </View>
 
           <Text style={styles.sectionTitle}>{strings['today.rulesSectionTitle']}</Text>
@@ -344,7 +362,7 @@ export default function Today() {
             <Text style={styles.closed}>{strings['today.dayFrozen']}</Text>
           ) : (
             <View style={styles.ctaWrap}>
-              <TouchableOpacity style={styles.ctaButton} onPress={cloturer}>
+              <TouchableOpacity style={accentStyles.ctaButton} onPress={confirmerCloture}>
                 <Ionicons name="play" size={17} color="#fff" />
                 <Text style={styles.ctaLabel}>{strings['today.startRitual']}</Text>
               </TouchableOpacity>
@@ -361,7 +379,7 @@ export default function Today() {
             <View key={reward.grantId} style={styles.pendingRow}>
               <Text style={styles.pendingLabel}>{reward.label}</Text>
               <TouchableOpacity onPress={() => consommer(reward.grantId)}>
-                <Text style={styles.pendingAction}>{strings['today.markConsumed']}</Text>
+                <Text style={accentStyles.pendingAction}>{strings['today.markConsumed']}</Text>
               </TouchableOpacity>
             </View>
           ))}
@@ -379,9 +397,10 @@ type RuleTileProps = {
 };
 
 function RuleTile({ check, modifiable, onPress, onLongPress }: RuleTileProps) {
-  const fond = couleurCategorie(check.category);
+  const fond = check.isThematic ? colors.special : couleurCategorie(check.category);
   const nonApplicable = check.etat === 'not_applicable';
   const coche = check.etat === 'respected';
+  const valeurPoints = check.isThematic ? check.bonusValue : check.points;
 
   return (
     <TouchableOpacity
@@ -396,11 +415,19 @@ function RuleTile({ check, modifiable, onPress, onLongPress }: RuleTileProps) {
         color="#fff"
         style={styles.tileIcon}
       />
-      <Text style={styles.tileCategory}>{strings[`category.${check.category}`] ?? strings['category.organisation']}</Text>
-      {(check.isThematic || check.status === 'acquired') && (
-        <Text style={styles.tileBadge}>
-          {check.isThematic ? strings['today.thematicBadge'] : strings['today.monthlyCheckBadge']}
+      <View style={styles.tileEyebrowRow}>
+        <Text style={styles.tileCategory}>{strings[`category.${check.category}`] ?? strings['category.organisation']}</Text>
+        <Text style={styles.tilePoints}>
+          +{valeurPoints} {valeurPoints > 1 ? strings['today.pointsAbbrevPlural'] : strings['today.pointsAbbrevSingular']}
         </Text>
+      </View>
+      {(check.isThematic || check.status === 'acquired') && (
+        <View style={styles.tileBadgeRow}>
+          {check.isThematic && <Ionicons name="star" size={11} color="#fff" />}
+          <Text style={styles.tileBadge}>
+            {check.isThematic ? strings['today.thematicBadge'] : strings['today.monthlyCheckBadge']}
+          </Text>
+        </View>
       )}
       <Text style={styles.tileLabel} numberOfLines={2}>
         {check.label}
@@ -412,17 +439,54 @@ function RuleTile({ check, modifiable, onPress, onLongPress }: RuleTileProps) {
   );
 }
 
+// §1.2 : couleur choisie par enfant (« Ajoute un enfant ») — seules les
+// quelques propriétés qui en dépendent sortent du StyleSheet statique.
+function makeAccentStyles(accent: string) {
+  return StyleSheet.create({
+    header: {
+      backgroundColor: accent,
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
+      paddingTop: 20,
+      paddingBottom: 24,
+      paddingHorizontal: 22,
+    },
+    scoreNumber: {
+      fontFamily: fonts.bodyExtraBold,
+      fontSize: 46,
+      color: accent,
+      lineHeight: 48,
+    },
+    gaugeFill: {
+      height: '100%',
+      borderRadius: 100,
+      backgroundColor: accent,
+    },
+    thresholdMet: {
+      marginTop: 8,
+      fontFamily: fonts.bodyBold,
+      color: accent,
+    },
+    ctaButton: {
+      backgroundColor: accent,
+      borderRadius: 100,
+      paddingVertical: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      width: '100%',
+    },
+    pendingAction: {
+      color: accent,
+      fontFamily: fonts.bodyBold,
+    },
+  });
+}
+
 const styles = StyleSheet.create({
   container: {
     paddingBottom: 32,
-  },
-  header: {
-    backgroundColor: colors.accent,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    paddingTop: 20,
-    paddingBottom: 24,
-    paddingHorizontal: 22,
   },
   headerRow: {
     flexDirection: 'row',
@@ -483,12 +547,6 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: 8,
   },
-  scoreNumber: {
-    fontFamily: fonts.bodyExtraBold,
-    fontSize: 46,
-    color: colors.accent,
-    lineHeight: 48,
-  },
   scoreSuffix: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 15,
@@ -500,16 +558,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     overflow: 'hidden',
     marginTop: 10,
-  },
-  gaugeFill: {
-    height: '100%',
-    borderRadius: 100,
-    backgroundColor: colors.accent,
-  },
-  thresholdMet: {
-    marginTop: 8,
-    fontFamily: fonts.bodyBold,
-    color: colors.accent,
   },
   sectionTitle: {
     fontFamily: fonts.cursive,
@@ -542,6 +590,12 @@ const styles = StyleSheet.create({
     bottom: -8,
     opacity: 0.28,
   },
+  tileEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
   tileCategory: {
     fontFamily: fonts.bodyBold,
     fontSize: 10,
@@ -549,11 +603,21 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: 'rgba(255,255,255,0.85)',
   },
+  tilePoints: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    color: '#fff',
+  },
+  tileBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
   tileBadge: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 10,
     color: '#fff',
-    marginTop: 2,
   },
   tileLabel: {
     position: 'absolute',
@@ -585,16 +649,6 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginHorizontal: 22,
     alignItems: 'center',
-  },
-  ctaButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 100,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    width: '100%',
   },
   ctaLabel: {
     fontFamily: fonts.bodyBold,
@@ -648,9 +702,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.bodyMedium,
     color: colors.ink,
-  },
-  pendingAction: {
-    color: colors.accent,
-    fontFamily: fonts.bodyBold,
   },
 });

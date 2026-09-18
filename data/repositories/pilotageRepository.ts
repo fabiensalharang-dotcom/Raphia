@@ -492,13 +492,21 @@ export async function fetchRecompenseInfo(rewardInstanceId: string): Promise<Rec
   return { label: data.label, tier: data.tier };
 }
 
-export async function ajouterRegleChoisie(suggestionId: string, childId: string, template: RuleTemplate): Promise<boolean> {
+// §1.2 : réutilisé à la fois par le pilotage (suggestion à résoudre) et par
+// la consultation libre du référentiel depuis les Réglages (pas de
+// suggestion à marquer, juste la contrainte des 6 règles actives).
+export async function ajouterHabitudeDepuisReferentiel(childId: string, template: RuleTemplate): Promise<boolean> {
   const { data: toutesLesRegles, error } = await supabase.from('rule_instance').select('status').eq('child_id', childId);
   if (error) throw error;
   const actives = (toutesLesRegles ?? []).filter((r) => r.status === 'active');
   if (actives.length >= 6) return false;
 
   await inserterNouvelleRegle(childId, template);
-  await marquerSuggestionResolue(suggestionId, 'accepted');
   return true;
+}
+
+export async function ajouterRegleChoisie(suggestionId: string, childId: string, template: RuleTemplate): Promise<boolean> {
+  const ok = await ajouterHabitudeDepuisReferentiel(childId, template);
+  if (ok) await marquerSuggestionResolue(suggestionId, 'accepted');
+  return ok;
 }

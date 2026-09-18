@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { nomIoniconPour } from '../../components/ruleIcons';
@@ -10,6 +10,7 @@ import { attribuerRecompense, fetchGrantForDayEntry } from '../../data/repositor
 import { supabase } from '../../data/supabaseClient';
 import { enregistrerEvenement } from '../../data/telemetry';
 import { strings } from '../../i18n/fr-FR';
+import { accentColorsFor } from '../../theme/accentPalette';
 import { colors, couleurCategorie } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
 
@@ -58,6 +59,8 @@ export default function Display() {
   const franchissement = useRef(new Animated.Value(1)).current;
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const etapesRef = useRef<Step[]>([]);
+  const { accent, accentSoft } = accentColorsFor(state?.themeColor);
+  const accentStyles = useMemo(() => makeAccentStyles(accent, accentSoft), [accent, accentSoft]);
 
   useEffect(() => {
     // Le verrouillage d'orientation n'a de sens que sur un vrai appareil
@@ -196,10 +199,14 @@ export default function Display() {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+    <Pressable style={styles.exitButton} onPress={() => router.replace('/(main)/today')} hitSlop={12}>
+      <Ionicons name="close" size={22} color={colors.ink} />
+      <Text style={styles.exitButtonLabel}>{strings['display.exit']}</Text>
+    </Pressable>
     <Pressable style={styles.pressable} onPress={passerLaSuite}>
       <View style={styles.header}>
         <Text style={styles.childName}>{state.childFirstName}</Text>
-        <Animated.Text style={[styles.score, { transform: [{ scale: franchissement }] }]}>
+        <Animated.Text style={[accentStyles.score, { transform: [{ scale: franchissement }] }]}>
           {compteurAffiche}
         </Animated.Text>
       </View>
@@ -208,7 +215,7 @@ export default function Display() {
         {visibles.has('gauge') && (
           <Animated.View
             style={[
-              styles.gaugeFill,
+              accentStyles.gaugeFill,
               {
                 width: gaugeAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
               },
@@ -218,25 +225,36 @@ export default function Display() {
       </View>
 
       <View style={styles.rulesRow}>
-        {state.rules.map((rule) => (
-          <View
-            key={rule.shortLabel}
-            style={[
-              styles.ruleCard,
-              { backgroundColor: couleurCategorie(rule.category) },
-              rule.etat === 'not_applicable' && styles.ruleCardMuted,
-            ]}
-          >
-            {rule.isThematic && <Text style={styles.ruleBadge}>{strings['today.thematicBadge']}</Text>}
-            <Ionicons name={nomIoniconPour(rule.icon)} size={40} color="#fff" />
-            <Text style={styles.ruleLabel}>{rule.shortLabel}</Text>
-            {rule.etat === 'respected' && (
-              <View style={styles.ruleCheck}>
-                <Ionicons name="checkmark" size={16} color={colors.ink} />
-              </View>
-            )}
-          </View>
-        ))}
+        {state.rules.map((rule) => {
+          const valeurPoints = rule.isThematic ? rule.bonusValue : rule.points;
+          return (
+            <View
+              key={rule.shortLabel}
+              style={[
+                styles.ruleCard,
+                { backgroundColor: rule.isThematic ? colors.special : couleurCategorie(rule.category) },
+                rule.etat === 'not_applicable' && styles.ruleCardMuted,
+              ]}
+            >
+              {rule.isThematic && (
+                <View style={styles.ruleBadgeRow}>
+                  <Ionicons name="star" size={11} color="#fff" />
+                  <Text style={styles.ruleBadge}>{strings['today.thematicBadge']}</Text>
+                </View>
+              )}
+              <Ionicons name={nomIoniconPour(rule.icon)} size={40} color="#fff" />
+              <Text style={styles.ruleLabel}>{rule.shortLabel}</Text>
+              <Text style={styles.rulePoints}>
+                +{valeurPoints} {valeurPoints > 1 ? strings['today.pointsAbbrevPlural'] : strings['today.pointsAbbrevSingular']}
+              </Text>
+              {rule.etat === 'respected' && (
+                <View style={styles.ruleCheck}>
+                  <Ionicons name="checkmark" size={16} color={colors.ink} />
+                </View>
+              )}
+            </View>
+          );
+        })}
       </View>
 
       {state.acquiredRules.length > 0 && (
@@ -251,9 +269,9 @@ export default function Display() {
       )}
 
       {visibles.has('streak') && state.streak && (
-        <View style={styles.streakBadge}>
-          <Ionicons name={nomIoniconPour(state.streak.icon)} size={28} color={colors.accent} />
-          <Text style={styles.streakDays}>{state.streak.days}</Text>
+        <View style={accentStyles.streakBadge}>
+          <Ionicons name={nomIoniconPour(state.streak.icon)} size={28} color={accent} />
+          <Text style={accentStyles.streakDays}>{state.streak.days}</Text>
         </View>
       )}
 
@@ -264,7 +282,7 @@ export default function Display() {
               key={jour.date}
               style={[
                 styles.weekDot,
-                jour.thresholdMet === true && styles.weekDotMet,
+                jour.thresholdMet === true && accentStyles.weekDotMet,
                 jour.thresholdMet === false && styles.weekDotNotMet,
               ]}
             />
@@ -275,10 +293,10 @@ export default function Display() {
       {visibles.has('reward') && (state.dailyReward.grant || state.dailyReward.options.length > 0) && (
         <View style={styles.rewardSection}>
           <View style={styles.rewardTagRow}>
-            <Text style={styles.rewardTag}>{strings['display.daily']}</Text>
+            <Text style={accentStyles.rewardTag}>{strings['display.daily']}</Text>
           </View>
           {state.dailyReward.grant ? (
-            <Text style={styles.rewardChosen}>{state.dailyReward.grant.label}</Text>
+            <Text style={accentStyles.rewardChosen}>{state.dailyReward.grant.label}</Text>
           ) : (
             <>
               <Text style={styles.rewardPrompt}>{strings['display.chooseReward']}</Text>
@@ -286,10 +304,10 @@ export default function Display() {
                 {state.dailyReward.options.map((option) => (
                   <Pressable
                     key={option.id}
-                    style={styles.rewardOption}
+                    style={accentStyles.rewardOption}
                     onPress={() => choisir('daily', option.id)}
                   >
-                    <Text style={styles.rewardOptionLabel}>{option.label}</Text>
+                    <Text style={accentStyles.rewardOptionLabel}>{option.label}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -301,10 +319,10 @@ export default function Display() {
       {visibles.has('reward') && state.weeklyReward && (state.weeklyReward.grant || state.weeklyReward.options.length > 0) && (
         <View style={styles.rewardSection}>
           <View style={styles.rewardTagRow}>
-            <Text style={styles.rewardTag}>{strings['display.weekly']}</Text>
+            <Text style={accentStyles.rewardTag}>{strings['display.weekly']}</Text>
           </View>
           {state.weeklyReward.grant ? (
-            <Text style={styles.rewardChosen}>{state.weeklyReward.grant.label}</Text>
+            <Text style={accentStyles.rewardChosen}>{state.weeklyReward.grant.label}</Text>
           ) : (
             <>
               <Text style={styles.rewardPrompt}>{strings['display.chooseReward']}</Text>
@@ -312,10 +330,10 @@ export default function Display() {
                 {state.weeklyReward.options.map((option) => (
                   <Pressable
                     key={option.id}
-                    style={styles.rewardOption}
+                    style={accentStyles.rewardOption}
                     onPress={() => choisir('weekly', option.id)}
                   >
-                    <Text style={styles.rewardOptionLabel}>{option.label}</Text>
+                    <Text style={accentStyles.rewardOptionLabel}>{option.label}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -326,6 +344,63 @@ export default function Display() {
     </Pressable>
     </ScrollView>
   );
+}
+
+function makeAccentStyles(accent: string, accentSoft: string) {
+  return StyleSheet.create({
+    score: {
+      color: accent,
+      fontFamily: fonts.bodyExtraBold,
+      fontSize: 160,
+      lineHeight: 180,
+    },
+    gaugeFill: {
+      height: '100%',
+      backgroundColor: accent,
+    },
+    streakBadge: {
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: accentSoft,
+      borderRadius: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+    },
+    streakDays: {
+      color: accent,
+      fontFamily: fonts.bodyExtraBold,
+      fontSize: 24,
+    },
+    weekDotMet: {
+      backgroundColor: accent,
+    },
+    rewardTag: {
+      color: accent,
+      fontFamily: fonts.bodyBold,
+      fontSize: 14,
+      textTransform: 'uppercase',
+    },
+    rewardChosen: {
+      color: accent,
+      fontFamily: fonts.bodyBold,
+      fontSize: 28,
+      textAlign: 'center',
+    },
+    rewardOption: {
+      borderWidth: 2,
+      borderColor: accent,
+      borderRadius: 100,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    rewardOptionLabel: {
+      color: accent,
+      fontFamily: fonts.bodyBold,
+      fontSize: 16,
+    },
+  });
 }
 
 const styles = StyleSheet.create({
@@ -345,6 +420,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 16,
   },
+  exitButton: {
+    position: 'absolute',
+    top: '5%',
+    left: '5%',
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surface,
+    borderRadius: 100,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  exitButtonLabel: {
+    color: colors.ink,
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+  },
   header: {
     alignItems: 'center',
   },
@@ -353,21 +451,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.cursive,
     fontSize: 32,
   },
-  score: {
-    color: colors.accent,
-    fontFamily: fonts.bodyExtraBold,
-    fontSize: 160,
-    lineHeight: 180,
-  },
   gaugeTrack: {
     height: 24,
     borderRadius: 12,
     backgroundColor: colors.border,
     overflow: 'hidden',
-  },
-  gaugeFill: {
-    height: '100%',
-    backgroundColor: colors.accent,
   },
   rulesRow: {
     flexDirection: 'row',
@@ -391,6 +479,11 @@ const styles = StyleSheet.create({
   ruleCardMuted: {
     opacity: 0.45,
   },
+  ruleBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   ruleBadge: {
     color: '#fff',
     fontFamily: fonts.bodyBold,
@@ -402,6 +495,11 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 18,
     textAlign: 'center',
+  },
+  rulePoints: {
+    color: 'rgba(255,255,255,0.85)',
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
   },
   ruleCheck: {
     position: 'absolute',
@@ -427,21 +525,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  streakBadge: {
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.accentSoft,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  streakDays: {
-    color: colors.accent,
-    fontFamily: fonts.bodyExtraBold,
-    fontSize: 24,
-  },
   weekStrip: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -453,9 +536,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.border,
   },
-  weekDotMet: {
-    backgroundColor: colors.accent,
-  },
   weekDotNotMet: {
     backgroundColor: colors.inkMuted,
   },
@@ -466,40 +546,16 @@ const styles = StyleSheet.create({
   rewardTagRow: {
     flexDirection: 'row',
   },
-  rewardTag: {
-    color: colors.accent,
-    fontFamily: fonts.bodyBold,
-    fontSize: 14,
-    textTransform: 'uppercase',
-  },
   rewardPrompt: {
     color: colors.ink,
     fontFamily: fonts.bodySemiBold,
     fontSize: 20,
-  },
-  rewardChosen: {
-    color: colors.accent,
-    fontFamily: fonts.bodyBold,
-    fontSize: 28,
-    textAlign: 'center',
   },
   rewardOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 10,
-  },
-  rewardOption: {
-    borderWidth: 2,
-    borderColor: colors.accent,
-    borderRadius: 100,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  rewardOptionLabel: {
-    color: colors.accent,
-    fontFamily: fonts.bodyBold,
-    fontSize: 16,
   },
   errorText: {
     color: colors.danger,

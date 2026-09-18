@@ -116,7 +116,8 @@ export const bilan = {
   'bilan.question.steady.3': 'Tu peux lui demander comment s’est passée son école aujourd’hui.',
 
   'bilan.weekly.title': 'Bilan de la semaine',
-  'bilan.weekly.pointsSummary': '{points} points cette semaine — seuil atteint {daysThresholdMet} jours sur 7',
+  'bilan.weekly.pointsSummary.one': '{points} points cette semaine — seuil atteint {daysThresholdMet} jour sur 7',
+  'bilan.weekly.pointsSummary.other': '{points} points cette semaine — seuil atteint {daysThresholdMet} jours sur 7',
   'bilan.weekly.mostRegular': '« {ruleLabel} » est l’habitude la plus régulière cette semaine.',
   'bilan.weekly.mostImproved': '« {ruleLabel} » a le plus progressé par rapport à la semaine dernière.',
   'bilan.weekly.rewardUnlocked': 'La récompense de la semaine est débloquée : {rewardLabel}',

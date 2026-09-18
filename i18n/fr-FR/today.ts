@@ -1,5 +1,7 @@
 export const today = {
   'today.thematicBadge': 'Défi',
+  'today.pointsAbbrevSingular': 'pt',
+  'today.pointsAbbrevPlural': 'pts',
   'today.monthlyCheckBadge': 'Vérification mensuelle',
   'today.noEntryForDay': "Aucune donnée pour ce jour.",
   'today.closeDay': 'Clôturer la journée',
@@ -17,6 +19,14 @@ export const today = {
   'today.pointsSuffixLabel': 'points aujourd’hui',
   'today.startRitual': 'Lancer le rituel du soir',
   'today.startRitualSubtitle': '~90 secondes, avec Pousse',
+  'today.closeConfirmTitle': 'Clôturer la journée ?',
+  'today.closeConfirmBody.zero': 'Une fois clôturée, la journée ne pourra plus être modifiée. Tu confirmes ?',
+  'today.closeConfirmBody.one':
+    '1 habitude n’est pas encore cochée. Une fois clôturée, la journée ne pourra plus être modifiée. Tu confirmes ?',
+  'today.closeConfirmBody.other':
+    '{count} habitudes ne sont pas encore cochées. Une fois clôturée, la journée ne pourra plus être modifiée. Tu confirmes ?',
+  'today.closeConfirmCancel': 'Annuler',
+  'today.closeConfirmConfirm': 'Clôturer',
 
   'nav.today': "Aujourd'hui",
   'nav.progress': 'Progrès',

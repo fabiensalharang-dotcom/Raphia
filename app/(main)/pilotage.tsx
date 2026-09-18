@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import ChildSwitcher from '../../components/ChildSwitcher';
@@ -31,19 +31,23 @@ import { strings } from '../../i18n/fr-FR';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
 
+type AccentStyles = ReturnType<typeof makeAccentStyles>;
+
 type CarteProps = {
   suggestion: SuggestionView;
   childId: string;
   householdId: string;
   prenomEnfant: string;
+  accentStyles: AccentStyles;
   onResolved: () => void;
 };
 
 export default function Pilotage() {
   const onboarding = useOnboardingState();
-  const { activeChildId } = useActiveChild();
+  const { activeChildId, activeAccent } = useActiveChild();
   const childId = activeChildId;
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
+  const accentStyles = useMemo(() => makeAccentStyles(activeAccent.accent), [activeAccent.accent]);
   const [suggestions, setSuggestions] = useState<SuggestionView[] | null>(null);
   const [prenomEnfant, setPrenomEnfant] = useState('');
   const [error, setError] = useState(false);
@@ -85,7 +89,7 @@ export default function Pilotage() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
-      <ScreenHeader title={strings['pilotage.title']} />
+      <ScreenHeader title={strings['pilotage.title']} accentColor={activeAccent.accent} />
       <ChildSwitcher />
 
       <View style={styles.body}>
@@ -99,6 +103,7 @@ export default function Pilotage() {
             childId={childId as string}
             householdId={householdId as string}
             prenomEnfant={prenomEnfant}
+            accentStyles={accentStyles}
             onResolved={() => retirerSuggestion(suggestion.id)}
           />
         ))}
@@ -127,7 +132,7 @@ function CarteSuggestion(props: CarteProps) {
   }
 }
 
-function CarteRegleAcquise({ suggestion, childId, householdId, onResolved }: CarteProps) {
+function CarteRegleAcquise({ suggestion, childId, householdId, accentStyles, onResolved }: CarteProps) {
   const ruleInstanceId = suggestion.payload.ruleInstanceId as string;
   const label = suggestion.payload.label as string;
   const [busy, setBusy] = useState(false);
@@ -152,18 +157,18 @@ function CarteRegleAcquise({ suggestion, childId, householdId, onResolved }: Car
       </Text>
       <Text style={styles.cardBody}>{strings['pilotage.ruleAcquiredBody']}</Text>
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionPrimary} onPress={marquer} disabled={busy}>
-          <Text style={styles.actionPrimaryLabel}>{strings['pilotage.markAcquired']}</Text>
+        <TouchableOpacity style={accentStyles.actionPrimary} onPress={marquer} disabled={busy}>
+          <Text style={accentStyles.actionPrimaryLabel}>{strings['pilotage.markAcquired']}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionSecondary} onPress={garder} disabled={busy}>
-          <Text style={styles.actionSecondaryLabel}>{strings['pilotage.keepGoing']}</Text>
+        <TouchableOpacity style={accentStyles.actionSecondary} onPress={garder} disabled={busy}>
+          <Text style={accentStyles.actionSecondaryLabel}>{strings['pilotage.keepGoing']}</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-function CarteRegleEnEchec({ suggestion, childId, householdId, prenomEnfant, onResolved }: CarteProps) {
+function CarteRegleEnEchec({ suggestion, childId, householdId, prenomEnfant, accentStyles, onResolved }: CarteProps) {
   const ruleInstanceId = suggestion.payload.ruleInstanceId as string;
   const label = suggestion.payload.label as string;
   const splitInto = (suggestion.payload.splitInto as string[] | undefined) ?? [];
@@ -228,20 +233,20 @@ function CarteRegleEnEchec({ suggestion, childId, householdId, prenomEnfant, onR
           {candidats?.map((candidat) => (
             <TouchableOpacity
               key={candidat.id}
-              style={styles.actionPrimary}
+              style={accentStyles.actionPrimary}
               onPress={() => decouper(candidat.id)}
               disabled={busy}
             >
-              <Text style={styles.actionPrimaryLabel}>
+              <Text style={accentStyles.actionPrimaryLabel}>
                 {strings['pilotage.splitRule']} : {candidat.label}
               </Text>
             </TouchableOpacity>
           ))}
-          <TouchableOpacity style={styles.actionSecondary} onPress={() => setMode('reformuler')} disabled={busy}>
-            <Text style={styles.actionSecondaryLabel}>{strings['pilotage.rewriteRule']}</Text>
+          <TouchableOpacity style={accentStyles.actionSecondary} onPress={() => setMode('reformuler')} disabled={busy}>
+            <Text style={accentStyles.actionSecondaryLabel}>{strings['pilotage.rewriteRule']}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionSecondary} onPress={mettreEnPause} disabled={busy}>
-            <Text style={styles.actionSecondaryLabel}>{strings['pilotage.pauseRule']}</Text>
+          <TouchableOpacity style={accentStyles.actionSecondary} onPress={mettreEnPause} disabled={busy}>
+            <Text style={accentStyles.actionSecondaryLabel}>{strings['pilotage.pauseRule']}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={ecarter} disabled={busy}>
             <Text style={styles.dismissLabel}>{strings['pilotage.dismiss']}</Text>
@@ -263,11 +268,11 @@ function CarteRegleEnEchec({ suggestion, childId, householdId, prenomEnfant, onR
             maxLength={28}
           />
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionPrimary} onPress={enregistrerReformulation} disabled={busy}>
-              <Text style={styles.actionPrimaryLabel}>{strings['pilotage.rewriteSave']}</Text>
+            <TouchableOpacity style={accentStyles.actionPrimary} onPress={enregistrerReformulation} disabled={busy}>
+              <Text style={accentStyles.actionPrimaryLabel}>{strings['pilotage.rewriteSave']}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionSecondary} onPress={() => setMode('menu')} disabled={busy}>
-              <Text style={styles.actionSecondaryLabel}>{strings['pilotage.rewriteCancel']}</Text>
+            <TouchableOpacity style={accentStyles.actionSecondary} onPress={() => setMode('menu')} disabled={busy}>
+              <Text style={accentStyles.actionSecondaryLabel}>{strings['pilotage.rewriteCancel']}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -276,7 +281,7 @@ function CarteRegleEnEchec({ suggestion, childId, householdId, prenomEnfant, onR
   );
 }
 
-function CarteRecompenseUsee({ suggestion, childId, householdId, onResolved }: CarteProps) {
+function CarteRecompenseUsee({ suggestion, childId, householdId, accentStyles, onResolved }: CarteProps) {
   const rewardInstanceId = suggestion.payload.rewardInstanceId as string | null;
   const [info, setInfo] = useState<RecompenseInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -314,18 +319,18 @@ function CarteRecompenseUsee({ suggestion, childId, householdId, onResolved }: C
       </Text>
       <Text style={styles.cardBody}>{strings['pilotage.rewardFatigueBody']}</Text>
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionPrimary} onPress={ajouter} disabled={busy}>
-          <Text style={styles.actionPrimaryLabel}>{strings['pilotage.addRewards']}</Text>
+        <TouchableOpacity style={accentStyles.actionPrimary} onPress={ajouter} disabled={busy}>
+          <Text style={accentStyles.actionPrimaryLabel}>{strings['pilotage.addRewards']}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionSecondary} onPress={toutVaBien} disabled={busy}>
-          <Text style={styles.actionSecondaryLabel}>{strings['pilotage.allGood']}</Text>
+        <TouchableOpacity style={accentStyles.actionSecondary} onPress={toutVaBien} disabled={busy}>
+          <Text style={accentStyles.actionSecondaryLabel}>{strings['pilotage.allGood']}</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-function CarteSeuil({ suggestion, childId, householdId, onResolved, sens }: CarteProps & { sens: 'haut' | 'bas' }) {
+function CarteSeuil({ suggestion, childId, householdId, accentStyles, onResolved, sens }: CarteProps & { sens: 'haut' | 'bas' }) {
   const [candidat, setCandidat] = useState<RuleTemplate[] | null>(null);
   const [reglesActives, setReglesActives] = useState<RegleActiveOption[] | null>(null);
   const [choisirRegleARetirer, setChoisirRegleARetirer] = useState(false);
@@ -390,16 +395,16 @@ function CarteSeuil({ suggestion, childId, householdId, onResolved, sens }: Cart
           {tableauComplet ? (
             <Text style={styles.cardBody}>{strings['pilotage.boardFull']}</Text>
           ) : candidat && candidat.length > 0 ? (
-            <TouchableOpacity style={styles.actionPrimary} onPress={() => ajouterRegle(candidat[0])} disabled={busy}>
-              <Text style={styles.actionPrimaryLabel}>
+            <TouchableOpacity style={accentStyles.actionPrimary} onPress={() => ajouterRegle(candidat[0])} disabled={busy}>
+              <Text style={accentStyles.actionPrimaryLabel}>
                 {strings['pilotage.addRule']} : {candidat[0].label}
               </Text>
             </TouchableOpacity>
           ) : candidat ? (
             <Text style={styles.cardBody}>{strings['pilotage.noCandidateRule']}</Text>
           ) : null}
-          <TouchableOpacity style={styles.actionSecondary} onPress={ajusterSeuil} disabled={busy}>
-            <Text style={styles.actionSecondaryLabel}>{strings['pilotage.raiseThreshold']}</Text>
+          <TouchableOpacity style={accentStyles.actionSecondary} onPress={ajusterSeuil} disabled={busy}>
+            <Text style={accentStyles.actionSecondaryLabel}>{strings['pilotage.raiseThreshold']}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={ecarter} disabled={busy}>
             <Text style={styles.dismissLabel}>{strings['pilotage.dismiss']}</Text>
@@ -407,12 +412,12 @@ function CarteSeuil({ suggestion, childId, householdId, onResolved, sens }: Cart
         </View>
       ) : (
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionPrimary} onPress={ajusterSeuil} disabled={busy}>
-            <Text style={styles.actionPrimaryLabel}>{strings['pilotage.lowerThreshold']}</Text>
+          <TouchableOpacity style={accentStyles.actionPrimary} onPress={ajusterSeuil} disabled={busy}>
+            <Text style={accentStyles.actionPrimaryLabel}>{strings['pilotage.lowerThreshold']}</Text>
           </TouchableOpacity>
           {!choisirRegleARetirer ? (
-            <TouchableOpacity style={styles.actionSecondary} onPress={ouvrirChoixRetrait} disabled={busy}>
-              <Text style={styles.actionSecondaryLabel}>{strings['pilotage.removeRule']}</Text>
+            <TouchableOpacity style={accentStyles.actionSecondary} onPress={ouvrirChoixRetrait} disabled={busy}>
+              <Text style={accentStyles.actionSecondaryLabel}>{strings['pilotage.removeRule']}</Text>
             </TouchableOpacity>
           ) : (
             <>
@@ -420,11 +425,11 @@ function CarteSeuil({ suggestion, childId, householdId, onResolved, sens }: Cart
               {reglesActives?.map((regle) => (
                 <TouchableOpacity
                   key={regle.ruleInstanceId}
-                  style={styles.actionSecondary}
+                  style={accentStyles.actionSecondary}
                   onPress={() => retirer(regle.ruleInstanceId)}
                   disabled={busy}
                 >
-                  <Text style={styles.actionSecondaryLabel}>{regle.label}</Text>
+                  <Text style={accentStyles.actionSecondaryLabel}>{regle.label}</Text>
                 </TouchableOpacity>
               ))}
             </>
@@ -438,7 +443,7 @@ function CarteSeuil({ suggestion, childId, householdId, onResolved, sens }: Cart
   );
 }
 
-function CarteChangementAge({ suggestion, childId, householdId, onResolved }: CarteProps) {
+function CarteChangementAge({ suggestion, childId, householdId, accentStyles, onResolved }: CarteProps) {
   const age = suggestion.payload.age as number;
   const [candidats, setCandidats] = useState<RuleTemplate[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -482,8 +487,8 @@ function CarteChangementAge({ suggestion, childId, householdId, onResolved }: Ca
           <Text style={styles.cardBody}>{strings['pilotage.boardFull']}</Text>
         ) : (
           candidats?.map((candidat) => (
-            <TouchableOpacity key={candidat.id} style={styles.actionPrimary} onPress={() => ajouter(candidat)} disabled={busy}>
-              <Text style={styles.actionPrimaryLabel}>{candidat.label}</Text>
+            <TouchableOpacity key={candidat.id} style={accentStyles.actionPrimary} onPress={() => ajouter(candidat)} disabled={busy}>
+              <Text style={accentStyles.actionPrimaryLabel}>{candidat.label}</Text>
             </TouchableOpacity>
           ))
         )}
@@ -493,6 +498,32 @@ function CarteChangementAge({ suggestion, childId, householdId, onResolved }: Ca
       </View>
     </View>
   );
+}
+
+function makeAccentStyles(accent: string) {
+  return StyleSheet.create({
+    actionPrimary: {
+      backgroundColor: accent,
+      borderRadius: 100,
+      padding: 12,
+      alignItems: 'center',
+    },
+    actionPrimaryLabel: {
+      color: '#fff',
+      fontFamily: fonts.bodyBold,
+    },
+    actionSecondary: {
+      borderWidth: 1.5,
+      borderColor: accent,
+      borderRadius: 100,
+      padding: 12,
+      alignItems: 'center',
+    },
+    actionSecondaryLabel: {
+      color: accent,
+      fontFamily: fonts.bodyBold,
+    },
+  });
 }
 
 const styles = StyleSheet.create({
@@ -542,27 +573,6 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     gap: 8,
-  },
-  actionPrimary: {
-    backgroundColor: colors.accent,
-    borderRadius: 100,
-    padding: 12,
-    alignItems: 'center',
-  },
-  actionPrimaryLabel: {
-    color: '#fff',
-    fontFamily: fonts.bodyBold,
-  },
-  actionSecondary: {
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    borderRadius: 100,
-    padding: 12,
-    alignItems: 'center',
-  },
-  actionSecondaryLabel: {
-    color: colors.accent,
-    fontFamily: fonts.bodyBold,
   },
   dismissLabel: {
     color: colors.inkMuted,
