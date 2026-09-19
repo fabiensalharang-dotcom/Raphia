@@ -52,3 +52,6 @@ files.zip
 
 # fichiers verrous Microsoft Office
 ~$*
+
+# cache local du CLI Supabase
+supabase/.temp/

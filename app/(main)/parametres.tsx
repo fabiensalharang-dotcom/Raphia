@@ -7,7 +7,14 @@ import ColorPicker from '../../components/ColorPicker';
 import ScreenHeader from '../../components/ScreenHeader';
 import { useActiveChild } from '../../data/activeChild';
 import { exporterDonneesFoyer, supprimerCompte, supprimerEnfant } from '../../data/repositories/accountRepository';
-import { definirSeuilQuotidien, fetchSeuilInfo, type SeuilInfo } from '../../data/repositories/pilotageRepository';
+import {
+  definirSeuilHebdomadaire,
+  definirSeuilQuotidien,
+  fetchSeuilHebdoInfo,
+  fetchSeuilInfo,
+  type SeuilHebdoInfo,
+  type SeuilInfo,
+} from '../../data/repositories/pilotageRepository';
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
@@ -27,6 +34,8 @@ export default function Parametres() {
   const [suppressionEnCours, setSuppressionEnCours] = useState(false);
   const [suppressionErreur, setSuppressionErreur] = useState(false);
   const [seuilInfo, setSeuilInfo] = useState<SeuilInfo | null>(null);
+  const [seuilHebdoInfo, setSeuilHebdoInfo] = useState<SeuilHebdoInfo | null>(null);
+  const [seuilMode, setSeuilMode] = useState<'daily' | 'weekly'>('daily');
   const [seuilErreur, setSeuilErreur] = useState(false);
   const [retraitEnCours, setRetraitEnCours] = useState(false);
   const [retraitErreur, setRetraitErreur] = useState(false);
@@ -34,9 +43,12 @@ export default function Parametres() {
   useEffect(() => {
     if (!activeChildId) return;
     let cancelled = false;
-    fetchSeuilInfo(activeChildId)
-      .then((info) => {
-        if (!cancelled) setSeuilInfo(info);
+    Promise.all([fetchSeuilInfo(activeChildId), fetchSeuilHebdoInfo(activeChildId)])
+      .then(([info, infoHebdo]) => {
+        if (!cancelled) {
+          setSeuilInfo(info);
+          setSeuilHebdoInfo(infoHebdo);
+        }
       })
       .catch(() => {
         if (!cancelled) setSeuilErreur(true);
@@ -73,6 +85,30 @@ export default function Parametres() {
     try {
       await definirSeuilQuotidien(activeChildId, seuilInfo.seuilRecommande);
       setSeuilInfo({ ...seuilInfo, seuilActuel: seuilInfo.seuilRecommande });
+    } catch {
+      setSeuilErreur(true);
+    }
+  }
+
+  async function ajusterSeuilHebdo(delta: number) {
+    if (!activeChildId || !seuilHebdoInfo) return;
+    const nouveauSeuil = Math.max(1, Math.min(seuilHebdoInfo.maxJours, seuilHebdoInfo.seuilActuel + delta));
+    if (nouveauSeuil === seuilHebdoInfo.seuilActuel) return;
+    setSeuilErreur(false);
+    try {
+      await definirSeuilHebdomadaire(activeChildId, nouveauSeuil);
+      setSeuilHebdoInfo({ ...seuilHebdoInfo, seuilActuel: nouveauSeuil });
+    } catch {
+      setSeuilErreur(true);
+    }
+  }
+
+  async function reinitialiserSeuilHebdo() {
+    if (!activeChildId || !seuilHebdoInfo) return;
+    setSeuilErreur(false);
+    try {
+      await definirSeuilHebdomadaire(activeChildId, seuilHebdoInfo.seuilParDefaut);
+      setSeuilHebdoInfo({ ...seuilHebdoInfo, seuilActuel: seuilHebdoInfo.seuilParDefaut });
     } catch {
       setSeuilErreur(true);
     }
@@ -183,64 +219,164 @@ export default function Parametres() {
           </View>
         )}
 
-        {enfantActif && seuilInfo && (
+        {enfantActif && (
+          <View style={styles.card}>
+            <Text style={styles.cardText}>
+              {strings['parametres.rewardsTitle']} {enfantActif.firstName}
+            </Text>
+            <Text style={styles.cardBody}>{strings['parametres.rewardsBody']}</Text>
+            <TouchableOpacity style={accentStyles.actionSecondary} onPress={() => router.push('/(main)/recompenses')}>
+              <Text style={accentStyles.actionSecondaryLabel}>{strings['parametres.rewardsButton']}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {enfantActif && seuilInfo && seuilHebdoInfo && (
           <View style={styles.card}>
             <Text style={styles.cardText}>
               {strings['parametres.thresholdTitle']} {enfantActif.firstName}
             </Text>
-            <Text style={styles.cardBody}>{strings['parametres.thresholdBody']}</Text>
+
+            <View style={styles.seuilModeRow}>
+              <TouchableOpacity
+                style={[accentStyles.seuilModeSegment, seuilMode === 'daily' && accentStyles.seuilModeSegmentActive]}
+                onPress={() => setSeuilMode('daily')}
+              >
+                <Text style={[styles.seuilModeLabel, seuilMode === 'daily' && styles.seuilModeLabelActive]}>
+                  {strings['parametres.thresholdDailyFilter']}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[accentStyles.seuilModeSegment, seuilMode === 'weekly' && accentStyles.seuilModeSegmentActive]}
+                onPress={() => setSeuilMode('weekly')}
+              >
+                <Text style={[styles.seuilModeLabel, seuilMode === 'weekly' && styles.seuilModeLabelActive]}>
+                  {strings['parametres.thresholdWeeklyFilter']}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.cardBody}>
+              {seuilMode === 'daily' ? strings['parametres.thresholdBody'] : strings['parametres.thresholdWeeklyBody']}
+            </Text>
             {seuilErreur ? <Text style={styles.error}>{strings['parametres.thresholdError']}</Text> : null}
 
-            <View style={styles.thresholdRow}>
-              <TouchableOpacity
-                style={[accentStyles.thresholdStepper, seuilInfo.seuilActuel <= 1 && styles.thresholdStepperDisabled]}
-                onPress={() => ajusterSeuil(-1)}
-                disabled={seuilInfo.seuilActuel <= 1}
-              >
-                <Text style={accentStyles.thresholdStepperLabel}>–</Text>
-              </TouchableOpacity>
-              <View style={styles.thresholdValueWrap}>
-                <Text style={accentStyles.thresholdValue}>{seuilInfo.seuilActuel}</Text>
-                <Text style={styles.thresholdMax}>
-                  / {seuilInfo.pointsMax} {strings['parametres.thresholdMaxSuffix']}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[
-                  accentStyles.thresholdStepper,
-                  seuilInfo.seuilActuel >= seuilInfo.pointsMax && styles.thresholdStepperDisabled,
-                ]}
-                onPress={() => ajusterSeuil(1)}
-                disabled={seuilInfo.seuilActuel >= seuilInfo.pointsMax}
-              >
-                <Text style={accentStyles.thresholdStepperLabel}>+</Text>
-              </TouchableOpacity>
-            </View>
+            {seuilMode === 'daily' ? (
+              <>
+                <View style={styles.thresholdRow}>
+                  <TouchableOpacity
+                    style={[accentStyles.thresholdStepper, seuilInfo.seuilActuel <= 1 && styles.thresholdStepperDisabled]}
+                    onPress={() => ajusterSeuil(-1)}
+                    disabled={seuilInfo.seuilActuel <= 1}
+                  >
+                    <Text style={accentStyles.thresholdStepperLabel}>–</Text>
+                  </TouchableOpacity>
+                  <View style={styles.thresholdValueWrap}>
+                    <Text style={accentStyles.thresholdValue}>{seuilInfo.seuilActuel}</Text>
+                    <Text style={styles.thresholdMax}>
+                      / {seuilInfo.pointsMax} {strings['parametres.thresholdMaxSuffix']}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      accentStyles.thresholdStepper,
+                      seuilInfo.seuilActuel >= seuilInfo.pointsMax && styles.thresholdStepperDisabled,
+                    ]}
+                    onPress={() => ajusterSeuil(1)}
+                    disabled={seuilInfo.seuilActuel >= seuilInfo.pointsMax}
+                  >
+                    <Text style={accentStyles.thresholdStepperLabel}>+</Text>
+                  </TouchableOpacity>
+                </View>
 
-            <View style={styles.thresholdGaugeWrap}>
-              <View style={styles.thresholdGaugeTrack}>
-                <View
-                  style={[
-                    accentStyles.thresholdGaugeFill,
-                    { width: `${Math.min(100, (seuilInfo.seuilActuel / Math.max(1, seuilInfo.pointsMax)) * 100)}%` },
-                  ]}
-                />
-              </View>
-              <View
-                style={[
-                  styles.thresholdGaugeMark,
-                  { left: `${Math.min(100, (seuilInfo.seuilRecommande / Math.max(1, seuilInfo.pointsMax)) * 100)}%` },
-                ]}
-              />
-            </View>
+                <View style={styles.thresholdGaugeWrap}>
+                  <View style={styles.thresholdGaugeTrack}>
+                    <View
+                      style={[
+                        accentStyles.thresholdGaugeFill,
+                        { width: `${Math.min(100, (seuilInfo.seuilActuel / Math.max(1, seuilInfo.pointsMax)) * 100)}%` },
+                      ]}
+                    />
+                  </View>
+                  <View
+                    style={[
+                      styles.thresholdGaugeMark,
+                      { left: `${Math.min(100, (seuilInfo.seuilRecommande / Math.max(1, seuilInfo.pointsMax)) * 100)}%` },
+                    ]}
+                  />
+                </View>
 
-            {seuilInfo.seuilActuel !== seuilInfo.seuilRecommande && (
-              <TouchableOpacity onPress={reinitialiserSeuil}>
-                <Text style={accentStyles.thresholdReset}>
-                  {strings['parametres.thresholdRecommended'].replace('{value}', String(seuilInfo.seuilRecommande))} ·{' '}
-                  {strings['parametres.thresholdResetButton']}
-                </Text>
-              </TouchableOpacity>
+                {seuilInfo.seuilActuel !== seuilInfo.seuilRecommande && (
+                  <TouchableOpacity onPress={reinitialiserSeuil}>
+                    <Text style={accentStyles.thresholdReset}>
+                      {strings['parametres.thresholdRecommended'].replace('{value}', String(seuilInfo.seuilRecommande))} ·{' '}
+                      {strings['parametres.thresholdResetButton']}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : (
+              <>
+                <View style={styles.thresholdRow}>
+                  <TouchableOpacity
+                    style={[
+                      accentStyles.thresholdStepper,
+                      seuilHebdoInfo.seuilActuel <= 1 && styles.thresholdStepperDisabled,
+                    ]}
+                    onPress={() => ajusterSeuilHebdo(-1)}
+                    disabled={seuilHebdoInfo.seuilActuel <= 1}
+                  >
+                    <Text style={accentStyles.thresholdStepperLabel}>–</Text>
+                  </TouchableOpacity>
+                  <View style={styles.thresholdValueWrap}>
+                    <Text style={accentStyles.thresholdValue}>{seuilHebdoInfo.seuilActuel}</Text>
+                    <Text style={styles.thresholdMax}>
+                      / {seuilHebdoInfo.maxJours} {strings['parametres.thresholdWeeklyMaxSuffix']}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      accentStyles.thresholdStepper,
+                      seuilHebdoInfo.seuilActuel >= seuilHebdoInfo.maxJours && styles.thresholdStepperDisabled,
+                    ]}
+                    onPress={() => ajusterSeuilHebdo(1)}
+                    disabled={seuilHebdoInfo.seuilActuel >= seuilHebdoInfo.maxJours}
+                  >
+                    <Text style={accentStyles.thresholdStepperLabel}>+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.thresholdGaugeWrap}>
+                  <View style={styles.thresholdGaugeTrack}>
+                    <View
+                      style={[
+                        accentStyles.thresholdGaugeFill,
+                        {
+                          width: `${Math.min(100, (seuilHebdoInfo.seuilActuel / seuilHebdoInfo.maxJours) * 100)}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View
+                    style={[
+                      styles.thresholdGaugeMark,
+                      { left: `${Math.min(100, (seuilHebdoInfo.seuilParDefaut / seuilHebdoInfo.maxJours) * 100)}%` },
+                    ]}
+                  />
+                </View>
+
+                {seuilHebdoInfo.seuilActuel !== seuilHebdoInfo.seuilParDefaut && (
+                  <TouchableOpacity onPress={reinitialiserSeuilHebdo}>
+                    <Text style={accentStyles.thresholdReset}>
+                      {strings['parametres.thresholdWeeklyDefault'].replace(
+                        '{value}',
+                        String(seuilHebdoInfo.seuilParDefaut)
+                      )}{' '}
+                      · {strings['parametres.thresholdWeeklyResetButton']}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
         )}
@@ -355,6 +491,17 @@ function makeAccentStyles(accent: string) {
       color: accent,
       marginTop: 4,
     },
+    seuilModeSegment: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderColor: accent,
+      borderRadius: 100,
+      paddingVertical: 8,
+      alignItems: 'center',
+    },
+    seuilModeSegmentActive: {
+      backgroundColor: accent,
+    },
   });
 }
 
@@ -408,6 +555,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.inkMuted,
     marginTop: 4,
+  },
+  seuilModeRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  seuilModeLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.ink,
+  },
+  seuilModeLabelActive: {
+    color: '#fff',
   },
   thresholdRow: {
     flexDirection: 'row',

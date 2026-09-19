@@ -1,9 +1,11 @@
 export { calculerScoreJournalier } from './calculerScoreJournalier';
 export { verifierSeuilAtteint } from './verifierSeuilAtteint';
+export type { DefiBloquant } from './verifierSeuilAtteint';
 export { calculerCumulHebdomadaire } from './calculerCumulHebdomadaire';
 export type { CumulHebdomadaire } from './calculerCumulHebdomadaire';
 export { calculerSeuilPropose } from './calculerSeuilPropose';
 export { estJourModifiable } from './estJourModifiable';
+export { peutModifierJourCloture } from './peutModifierJourCloture';
 export { datesDeLaSemaine, estDernierJourDeLaSemaine } from './datesDeLaSemaine';
 export { semaineIso } from './semaineIso';
 export { calculerTauxReussiteParRegle } from './calculerTauxReussiteParRegle';

@@ -88,3 +88,21 @@ export async function marquerConsommee(grantId: string): Promise<void> {
     .eq('id', grantId);
   if (error) throw error;
 }
+
+// Changer une récompense déjà attribuée mais pas encore consommée — permis
+// tant que la journée reste modifiable (jusqu'à minuit, voir
+// peutModifierJourCloture). Ne touche jamais une récompense déjà consommée.
+export async function modifierRecompenseAttribuee(grantId: string, nouveauRewardInstanceId: string): Promise<void> {
+  const { error } = await supabase
+    .from('reward_grant')
+    .update({ reward_instance_id: nouveauRewardInstanceId })
+    .eq('id', grantId)
+    .is('redeemed_at', null);
+  if (error) throw error;
+
+  const { error: updateError } = await supabase
+    .from('reward_instance')
+    .update({ last_granted_at: new Date().toISOString() })
+    .eq('id', nouveauRewardInstanceId);
+  if (updateError) throw updateError;
+}

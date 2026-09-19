@@ -5,12 +5,22 @@ export const parametres = {
   'parametres.colorTitle': 'La couleur de',
   'parametres.colorBody': 'Change la couleur de son tableau à tout moment.',
 
-  'parametres.thresholdTitle': 'Le seuil quotidien de',
+  'parametres.thresholdTitle': 'Le seuil de',
+  'parametres.thresholdDailyFilter': 'Quotidien',
+  'parametres.thresholdWeeklyFilter': 'Hebdomadaire',
   'parametres.thresholdBody': 'Le nombre de points à atteindre chaque jour pour débloquer une récompense.',
+  'parametres.thresholdWeeklyBody': 'Le nombre de jours réussis dans la semaine pour débloquer une récompense hebdomadaire.',
   'parametres.thresholdMaxSuffix': 'points possibles',
+  'parametres.thresholdWeeklyMaxSuffix': 'jours',
   'parametres.thresholdRecommended': 'Seuil recommandé : {value} points',
+  'parametres.thresholdWeeklyDefault': 'Réglage par défaut : {value} jours',
   'parametres.thresholdResetButton': 'Revenir au seuil recommandé',
+  'parametres.thresholdWeeklyResetButton': 'Revenir au réglage par défaut',
   'parametres.thresholdError': 'Impossible de mettre à jour le seuil, réessaie.',
+
+  'parametres.rewardsTitle': 'Le menu de récompenses de',
+  'parametres.rewardsBody': 'Parcours toutes les récompenses disponibles et gère celles proposées.',
+  'parametres.rewardsButton': 'Voir le menu',
 
   'parametres.addChildTitle': 'Ajouter un enfant',
   'parametres.addChildBody': 'Crée un nouveau tableau, avec ses propres habitudes et récompenses.',

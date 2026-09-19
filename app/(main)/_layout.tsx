@@ -60,6 +60,7 @@ export default function MainLayout() {
             tabBarIcon: ({ color, size }) => <Ionicons name="settings" color={color} size={size} />,
           }}
         />
+        <Tabs.Screen name="recompenses" options={{ href: null }} />
       </Tabs>
     </ActiveChildProvider>
   );

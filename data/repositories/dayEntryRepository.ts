@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { estJourDeControle } from '../../core/pilotage';
 import type { RuleCategory } from '../../core/referential/types';
-import { calculerScoreJournalier, verifierSeuilAtteint } from '../../core/scoring';
+import { calculerScoreJournalier, verifierSeuilAtteint, type DefiBloquant } from '../../core/scoring';
 import type { EtatRegle, PointageRegle, StatutRegle } from '../../core/scoring/types';
 import { supabase } from '../supabaseClient';
 
@@ -15,6 +15,7 @@ export type RuleCheckView = {
   points: number;
   isThematic: boolean;
   bonusValue: number;
+  thematicBlocking: boolean;
   status: StatutRegle;
   etat: EtatRegle;
 };
@@ -66,7 +67,13 @@ function recalculerTotaux(checks: RuleCheckView[], thresholdApplied: number): { 
     etat: c.etat,
   }));
   const pointsTotal = calculerScoreJournalier(pointages);
-  return { pointsTotal, thresholdMet: verifierSeuilAtteint(pointsTotal, thresholdApplied) };
+
+  const defi = checks.find((c) => c.isThematic && c.status === 'active');
+  const defiBloquant: DefiBloquant | undefined = defi
+    ? { estBloquant: defi.thematicBlocking, estRespecte: defi.etat === 'respected' }
+    : undefined;
+
+  return { pointsTotal, thresholdMet: verifierSeuilAtteint(pointsTotal, thresholdApplied, defiBloquant) };
 }
 
 async function chargerDepuisServeur(
@@ -76,7 +83,7 @@ async function chargerDepuisServeur(
 ): Promise<DayEntryView> {
   const { data: reglesActives, error: reglesError } = await supabase
     .from('rule_instance')
-    .select('id, label, short_label, icon, category, points, is_thematic, bonus_value, status')
+    .select('id, label, short_label, icon, category, points, is_thematic, bonus_value, thematic_blocking, status')
     .eq('child_id', childId)
     .eq('status', 'active');
   if (reglesError) throw reglesError;
@@ -87,7 +94,9 @@ async function chargerDepuisServeur(
   // différent de « active »).
   const { data: reglesAcquises, error: acquisesError } = await supabase
     .from('rule_instance')
-    .select('id, label, short_label, icon, category, points, is_thematic, bonus_value, status, acquired_at')
+    .select(
+      'id, label, short_label, icon, category, points, is_thematic, bonus_value, thematic_blocking, status, acquired_at'
+    )
     .eq('child_id', childId)
     .eq('status', 'acquired')
     .not('acquired_at', 'is', null);
@@ -142,6 +151,7 @@ async function chargerDepuisServeur(
       points: r.points,
       isThematic: r.is_thematic,
       bonusValue: r.bonus_value,
+      thematicBlocking: r.thematic_blocking,
       status: r.status,
       etat: (existant?.state as EtatRegle) ?? 'not_respected',
     };
@@ -204,7 +214,7 @@ export async function fetchDayEntry(childId: string, date: string): Promise<DayE
     await Promise.all([
       supabase
         .from('rule_instance')
-        .select('id, label, short_label, icon, category, points, is_thematic, bonus_value, status')
+        .select('id, label, short_label, icon, category, points, is_thematic, bonus_value, thematic_blocking, status')
         .eq('child_id', childId),
       supabase.from('rule_check').select('rule_instance_id, state').eq('day_entry_id', dayEntry.id),
     ]);
@@ -225,6 +235,7 @@ export async function fetchDayEntry(childId: string, date: string): Promise<DayE
       points: r.points,
       isThematic: r.is_thematic,
       bonusValue: r.bonus_value,
+      thematicBlocking: r.thematic_blocking,
       status: r.status,
       etat: (checksParRegle.get(r.id)?.state as EtatRegle) ?? 'not_respected',
     }));

@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ChildSwitcher from '../../components/ChildSwitcher';
+import Confetti from '../../components/Confetti';
 import Pousse from '../../components/Pousse';
 import type { RuleCategory } from '../../core/referential/types';
 import { useActiveChild } from '../../data/activeChild';
 import { genererBilanDuJour, genererBilanHebdomadaireSiAbsent } from '../../data/repositories/bilanRepository';
-import { estDernierJourDeLaSemaine, estJourModifiable } from '../../core/scoring';
+import { estDernierJourDeLaSemaine, estJourModifiable, peutModifierJourCloture } from '../../core/scoring';
 import type { EtatRegle } from '../../core/scoring/types';
 import {
   cloturerJournee,
@@ -21,9 +22,12 @@ import {
 } from '../../data/repositories/dayEntryRepository';
 import { evaluerEtCreerSuggestion, verifierControlesPonctuels } from '../../data/repositories/pilotageRepository';
 import {
+  fetchAvailableRewards,
   fetchRecompensesEnAttente,
   marquerConsommee,
+  modifierRecompenseAttribuee,
   type PendingRewardGrant,
+  type RewardInstanceOption,
 } from '../../data/repositories/rewardGrantRepository';
 import { creerResumeSiAbsent } from '../../data/repositories/weekSummaryRepository';
 import { supabase } from '../../data/supabaseClient';
@@ -60,6 +64,10 @@ function dateDuJourDansFuseau(timezone: string): string {
   return formatter.format(new Date());
 }
 
+function remplir(gabarit: string, slots: Record<string, unknown>): string {
+  return gabarit.replace(/\{(\w+)\}/g, (_, nom: string) => String(slots[nom] ?? ''));
+}
+
 function ajouterJours(date: string, delta: number): string {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + delta);
@@ -89,6 +97,28 @@ export default function Today() {
   const [error, setError] = useState<string | null>(null);
   const [pendingRewards, setPendingRewards] = useState<PendingRewardGrant[]>([]);
   const [childFirstName, setChildFirstName] = useState<string>('');
+  const [clotureEnCours, setClotureEnCours] = useState(false);
+  const [clotureErreur, setClotureErreur] = useState(false);
+  const [changementId, setChangementId] = useState<string | null>(null);
+  const [optionsChangement, setOptionsChangement] = useState<RewardInstanceOption[]>([]);
+  const [afficherConfetti, setAfficherConfetti] = useState(false);
+  const seuilAtteintPrecedent = useRef<boolean | null>(null);
+  const [aideOuverte, setAideOuverte] = useState(false);
+  const [seuilHebdoAide, setSeuilHebdoAide] = useState<number | null>(null);
+
+  function ouvrirAide() {
+    setAideOuverte(true);
+    if (childId && seuilHebdoAide === null) {
+      supabase
+        .from('child')
+        .select('settings')
+        .eq('id', childId)
+        .single()
+        .then(({ data }) => {
+          setSeuilHebdoAide((data?.settings as { weeklyThreshold?: number } | null)?.weeklyThreshold ?? 5);
+        });
+    }
+  }
 
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
   const { activeChildId, setActiveChildId, children: enfantsFoyer, activeAccent } = useActiveChild();
@@ -196,6 +226,20 @@ export default function Today() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [childId]);
 
+  // §9.2 : « un état franchi visuellement spectaculaire » — déclenché
+  // uniquement sur la transition non atteint → atteint, jamais au premier
+  // chargement d'une journée déjà réussie.
+  useEffect(() => {
+    if (!dayView) return;
+    const precedent = seuilAtteintPrecedent.current;
+    seuilAtteintPrecedent.current = dayView.thresholdMet;
+    if (dayView.thresholdMet && precedent === false) {
+      setAfficherConfetti(true);
+      const t = setTimeout(() => setAfficherConfetti(false), 1800);
+      return () => clearTimeout(t);
+    }
+  }, [dayView?.thresholdMet]);
+
   async function rafraichirRecompensesEnAttente() {
     if (!childId) return;
     const liste = await fetchRecompensesEnAttente(childId);
@@ -211,11 +255,20 @@ export default function Today() {
 
   const aujourdHui = timezone ? dateDuJourDansFuseau(timezone) : null;
   const peutAllerAuJourSuivant = selectedDate !== null && aujourdHui !== null && selectedDate < aujourdHui;
-  const modifiable =
+  const modifiableAvantCloture =
     dayView !== null &&
     !dayView.isClosed &&
     timezone !== null &&
     estJourModifiable(dayView.date, new Date(), timezone);
+  // Une journée clôturée reste modifiable jusqu'à minuit (même jour civil,
+  // fuseau du foyer) : l'enfant garde la main sur son choix, sans réouvrir
+  // l'historique au-delà.
+  const modifiableApresCloture =
+    dayView !== null &&
+    dayView.isClosed &&
+    timezone !== null &&
+    peutModifierJourCloture(dayView.date, new Date(), timezone);
+  const modifiable = modifiableAvantCloture || modifiableApresCloture;
 
   async function basculer(ruleInstanceId: string, etatActuel: EtatRegle) {
     if (!dayView || !modifiable) return;
@@ -232,7 +285,7 @@ export default function Today() {
   }
 
   function confirmerCloture() {
-    if (!dayView || !modifiable) return;
+    if (!dayView || !modifiableAvantCloture) return;
     const nonCochees = dayView.checks.filter((c) => c.etat === 'not_respected').length;
     const cle =
       nonCochees === 0 ? 'today.closeConfirmBody.zero' : nonCochees === 1 ? 'today.closeConfirmBody.one' : 'today.closeConfirmBody.other';
@@ -249,8 +302,17 @@ export default function Today() {
   }
 
   async function cloturer() {
-    if (!dayView || !modifiable) return;
-    const nouvelleVue = await cloturerJournee(dayView);
+    if (!dayView || !modifiableAvantCloture) return;
+    setClotureEnCours(true);
+    setClotureErreur(false);
+    let nouvelleVue: DayEntryView;
+    try {
+      nouvelleVue = await cloturerJournee(dayView);
+    } catch {
+      setClotureEnCours(false);
+      setClotureErreur(true);
+      return;
+    }
     setDayView(nouvelleVue);
     if (householdId) enregistrerEvenement(householdId, 'day_closed', { thresholdMet: nouvelleVue.thresholdMet });
 
@@ -282,6 +344,7 @@ export default function Today() {
 
     // §7.2 : la séquence enfant se joue en Mode Affichage, déclenchée par
     // la clôture de la journée.
+    setClotureEnCours(false);
     if (childId) router.push(`/display/${childId}`);
   }
 
@@ -290,7 +353,38 @@ export default function Today() {
     rafraichirRecompensesEnAttente();
   }
 
+  async function ouvrirChangement(reward: PendingRewardGrant) {
+    if (!childId) return;
+    setChangementId(reward.grantId);
+    setOptionsChangement(await fetchAvailableRewards(childId, reward.tier));
+  }
+
+  function fermerChangement() {
+    setChangementId(null);
+    setOptionsChangement([]);
+  }
+
+  async function choisirNouvelleRecompense(grantId: string, rewardInstanceId: string) {
+    await modifierRecompenseAttribuee(grantId, rewardInstanceId);
+    fermerChangement();
+    rafraichirRecompensesEnAttente();
+  }
+
+  function peutEncoreChanger(grantedAt: string): boolean {
+    if (!timezone) return false;
+    const dateGrant = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(grantedAt));
+    return peutModifierJourCloture(dateGrant, new Date(), timezone);
+  }
+
+  const defiCheck = dayView?.checks.find((c) => c.isThematic) ?? null;
+
   return (
+    <>
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
       <View style={accentStyles.header}>
         <View style={styles.headerRow}>
@@ -330,6 +424,7 @@ export default function Today() {
       {dayView && (
         <>
           <View style={styles.scoreCard}>
+            {afficherConfetti && <Confetti />}
             <View style={styles.scoreRow}>
               <Text style={accentStyles.scoreNumber}>{dayView.pointsTotal}</Text>
               <Text style={styles.scoreSuffix}>
@@ -347,7 +442,12 @@ export default function Today() {
             {dayView.thresholdMet ? <Text style={accentStyles.thresholdMet}>{strings['today.thresholdReached']}</Text> : null}
           </View>
 
-          <Text style={styles.sectionTitle}>{strings['today.rulesSectionTitle']}</Text>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>{strings['today.rulesSectionTitle']}</Text>
+            <TouchableOpacity style={styles.helpButton} onPress={ouvrirAide}>
+              <Text style={styles.helpButtonLabel}>?</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.tileGrid}>
             {dayView.checks.map((check) => (
@@ -362,14 +462,26 @@ export default function Today() {
           </View>
 
           {dayView.isClosed ? (
-            <Text style={styles.closed}>{strings['today.dayClosed']}</Text>
-          ) : !modifiable ? (
+            <View style={styles.ctaWrap}>
+              <Text style={styles.closed}>{strings['today.dayClosed']}</Text>
+              {modifiableApresCloture && (
+                <Text style={styles.editableNote}>{strings['today.editableUntilMidnight']}</Text>
+              )}
+            </View>
+          ) : !modifiableAvantCloture ? (
             <Text style={styles.closed}>{strings['today.dayFrozen']}</Text>
           ) : (
             <View style={styles.ctaWrap}>
-              <TouchableOpacity style={accentStyles.ctaButton} onPress={confirmerCloture}>
-                <Ionicons name="play" size={17} color="#fff" />
-                <Text style={styles.ctaLabel}>{strings['today.startRitual']}</Text>
+              {clotureErreur ? <Text style={styles.error}>{strings['today.closeError']}</Text> : null}
+              <TouchableOpacity
+                style={[accentStyles.ctaButton, clotureEnCours && styles.ctaButtonDisabled]}
+                onPress={confirmerCloture}
+                disabled={clotureEnCours}
+              >
+                {!clotureEnCours && <Ionicons name="play" size={17} color="#fff" />}
+                <Text style={styles.ctaLabel}>
+                  {clotureEnCours ? strings['today.closingInProgress'] : strings['today.startRitual']}
+                </Text>
               </TouchableOpacity>
               <Text style={styles.ctaSubtitle}>{strings['today.startRitualSubtitle']}</Text>
             </View>
@@ -381,16 +493,71 @@ export default function Today() {
         <View style={styles.pendingSection}>
           <Text style={styles.pendingTitle}>{strings['today.pendingRewardsTitle']}</Text>
           {pendingRewards.map((reward) => (
-            <View key={reward.grantId} style={styles.pendingRow}>
-              <Text style={styles.pendingLabel}>{reward.label}</Text>
-              <TouchableOpacity onPress={() => consommer(reward.grantId)}>
-                <Text style={accentStyles.pendingAction}>{strings['today.markConsumed']}</Text>
-              </TouchableOpacity>
+            <View key={reward.grantId} style={styles.pendingItem}>
+              <View style={styles.pendingRow}>
+                <Text style={styles.pendingLabel}>{reward.label}</Text>
+                <View style={styles.pendingActions}>
+                  {peutEncoreChanger(reward.grantedAt) && (
+                    <TouchableOpacity onPress={() => ouvrirChangement(reward)}>
+                      <Text style={accentStyles.pendingAction}>{strings['today.changeReward']}</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity onPress={() => consommer(reward.grantId)}>
+                    <Text style={accentStyles.pendingAction}>{strings['today.markConsumed']}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              {changementId === reward.grantId && (
+                <View style={styles.changeOptions}>
+                  {optionsChangement.map((option) => (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={styles.changeOptionRow}
+                      onPress={() => choisirNouvelleRecompense(reward.grantId, option.id)}
+                    >
+                      <Text style={styles.changeOptionLabel}>{option.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity onPress={fermerChangement}>
+                    <Text style={styles.changeCancel}>{strings['referentiel.editCancel']}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           ))}
         </View>
       )}
     </ScrollView>
+
+    <Modal visible={aideOuverte} transparent animationType="fade" onRequestClose={() => setAideOuverte(false)}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>{strings['today.howItWorksTitle']}</Text>
+          <Text style={styles.modalLine}>{strings['today.howItWorksRule']}</Text>
+          {defiCheck && (
+            <Text style={styles.modalLine}>
+              {remplir(strings[defiCheck.thematicBlocking ? 'today.howItWorksDefiBlocking' : 'today.howItWorksDefi'], {
+                points: defiCheck.bonusValue,
+              })}
+            </Text>
+          )}
+          {dayView && (
+            <Text style={styles.modalLine}>
+              {remplir(strings['today.howItWorksThreshold'], { seuil: dayView.thresholdApplied })}
+            </Text>
+          )}
+          {seuilHebdoAide !== null && (
+            <Text style={styles.modalLine}>
+              {remplir(strings['today.howItWorksWeekly'], { jours: seuilHebdoAide })}
+            </Text>
+          )}
+          <TouchableOpacity style={accentStyles.modalCloseButton} onPress={() => setAideOuverte(false)}>
+            <Text style={styles.modalCloseLabel}>{strings['today.howItWorksClose']}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -405,11 +572,17 @@ function RuleTile({ check, modifiable, onPress, onLongPress }: RuleTileProps) {
   const fond = check.isThematic ? colors.special : couleurCategorie(check.category);
   const nonApplicable = check.etat === 'not_applicable';
   const coche = check.etat === 'respected';
+  const contenu = coche ? '#fff' : fond;
   const valeurPoints = check.isThematic ? check.bonusValue : check.points;
 
   return (
     <TouchableOpacity
-      style={[styles.tile, { backgroundColor: fond }, nonApplicable && styles.tileNonApplicable]}
+      style={[
+        styles.tile,
+        check.isThematic && styles.tileDefi,
+        { backgroundColor: coche ? fond : colors.surface, borderColor: fond },
+        nonApplicable && styles.tileNonApplicable,
+      ]}
       onPress={onPress}
       onLongPress={onLongPress}
       disabled={!modifiable}
@@ -417,27 +590,27 @@ function RuleTile({ check, modifiable, onPress, onLongPress }: RuleTileProps) {
       <Ionicons
         name={ICONE_PAR_CATEGORIE[check.category] ?? 'list-outline'}
         size={64}
-        color="#fff"
-        style={styles.tileIcon}
+        color={contenu}
+        style={[styles.tileIcon, { opacity: coche ? 0.28 : 0.16 }]}
       />
       <View style={styles.tileEyebrowRow}>
-        <Text style={styles.tileCategory}>{strings[`category.${check.category}`] ?? strings['category.organisation']}</Text>
-        <Text style={styles.tilePoints}>
+        <Text style={[styles.tileCategory, { color: contenu, opacity: coche ? 0.85 : 0.7 }]}>
+          {strings[`category.${check.category}`] ?? strings['category.organisation']}
+        </Text>
+        <Text style={[styles.tilePoints, { color: contenu }]}>
           +{valeurPoints} {valeurPoints > 1 ? strings['today.pointsAbbrevPlural'] : strings['today.pointsAbbrevSingular']}
         </Text>
       </View>
       {(check.isThematic || check.status === 'acquired') && (
-        <View style={styles.tileBadgeRow}>
-          {check.isThematic && <Ionicons name="star" size={11} color="#fff" />}
-          <Text style={styles.tileBadge}>
+        <View style={[styles.tileBadgeRow, check.isThematic && styles.tileBadgeRowDefi]}>
+          {check.isThematic && <Ionicons name="star" size={check.isThematic ? 15 : 11} color={contenu} />}
+          <Text style={[styles.tileBadge, check.isThematic && styles.tileBadgeDefi, { color: contenu }]}>
             {check.isThematic ? strings['today.thematicBadge'] : strings['today.monthlyCheckBadge']}
           </Text>
         </View>
       )}
-      <Text style={styles.tileLabel} numberOfLines={2}>
-        {check.label}
-      </Text>
-      <View style={[styles.tileCheck, coche && styles.tileCheckOn]}>
+      <Text style={[styles.tileLabel, { color: contenu }]}>{check.label}</Text>
+      <View style={[styles.tileCheck, { borderColor: coche ? '#fff' : fond }, coche && styles.tileCheckOn]}>
         {coche ? <Ionicons name="checkmark" size={18} color={fond} /> : null}
       </View>
     </TouchableOpacity>
@@ -485,6 +658,13 @@ function makeAccentStyles(accent: string, safeAreaTop: number) {
     pendingAction: {
       color: accent,
       fontFamily: fonts.bodyBold,
+    },
+    modalCloseButton: {
+      backgroundColor: accent,
+      borderRadius: 100,
+      paddingVertical: 12,
+      alignItems: 'center',
+      marginTop: 16,
     },
   });
 }
@@ -536,6 +716,7 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   scoreCard: {
+    position: 'relative',
     marginTop: 14,
     marginHorizontal: 22,
     backgroundColor: colors.surface,
@@ -568,13 +749,32 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 10,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 18,
+    marginBottom: 8,
+    marginHorizontal: 22,
+  },
   sectionTitle: {
     fontFamily: fonts.cursive,
     fontSize: 19,
     color: colors.ink,
-    marginTop: 18,
-    marginBottom: 8,
-    marginHorizontal: 22,
+  },
+  helpButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.inkMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helpButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.inkMuted,
   },
   tileGrid: {
     marginHorizontal: 22,
@@ -585,10 +785,14 @@ const styles = StyleSheet.create({
   tile: {
     position: 'relative',
     width: '47%',
-    height: 100,
+    minHeight: 100,
     borderRadius: 20,
+    borderWidth: 2.5,
     padding: 12,
     overflow: 'hidden',
+  },
+  tileDefi: {
+    width: '100%',
   },
   tileNonApplicable: {
     opacity: 0.45,
@@ -597,25 +801,23 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: -8,
     bottom: -8,
-    opacity: 0.28,
   },
   tileEyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 6,
+    paddingRight: 34,
   },
   tileCategory: {
     fontFamily: fonts.bodyBold,
     fontSize: 10,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.85)',
   },
   tilePoints: {
     fontFamily: fonts.bodyBold,
     fontSize: 10,
-    color: '#fff',
   },
   tileBadgeRow: {
     flexDirection: 'row',
@@ -623,19 +825,24 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 2,
   },
+  tileBadgeRowDefi: {
+    marginTop: 4,
+    gap: 6,
+  },
   tileBadge: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 10,
-    color: '#fff',
+  },
+  tileBadgeDefi: {
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 14,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   tileLabel: {
-    position: 'absolute',
-    left: 12,
-    right: 34,
-    bottom: 10,
+    marginTop: 8,
     fontFamily: fonts.bodyBold,
     fontSize: 14,
-    color: '#fff',
     lineHeight: 17,
   },
   tileCheck: {
@@ -646,7 +853,6 @@ const styles = StyleSheet.create({
     height: 30,
     borderRadius: 15,
     borderWidth: 2.5,
-    borderColor: 'rgba(255,255,255,0.85)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -675,6 +881,16 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     fontFamily: fonts.bodySemiBold,
     marginTop: 18,
+  },
+  editableNote: {
+    textAlign: 'center',
+    color: colors.inkMuted,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  ctaButtonDisabled: {
+    opacity: 0.7,
   },
   empty: {
     textAlign: 'center',
@@ -711,5 +927,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.bodyMedium,
     color: colors.ink,
+  },
+  pendingItem: {
+    gap: 8,
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  changeOptions: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 12,
+    gap: 8,
+  },
+  changeOptionRow: {
+    paddingVertical: 6,
+  },
+  changeOptionLabel: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 14,
+    color: colors.ink,
+  },
+  changeCancel: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.inkMuted,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(58,46,42,0.5)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 20,
+    gap: 10,
+  },
+  modalTitle: {
+    fontFamily: fonts.cursive,
+    fontSize: 22,
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  modalLine: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 14,
+    color: colors.ink,
+    lineHeight: 20,
+  },
+  modalCloseLabel: {
+    color: '#fff',
+    fontFamily: fonts.bodyBold,
   },
 });

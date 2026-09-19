@@ -322,7 +322,8 @@ async function inserterNouvelleRegle(
   childId: string,
   template: RuleTemplate,
   estThematique = false,
-  libellePersonnalise?: string
+  libellePersonnalise?: string,
+  thematiqueBloquant = false
 ): Promise<void> {
   const { error } = await supabase.from('rule_instance').insert({
     child_id: childId,
@@ -334,8 +335,20 @@ async function inserterNouvelleRegle(
     points: template.defaultPoints,
     is_thematic: estThematique,
     bonus_value: estThematique ? BONUS_THEMATIQUE_DEFAUT : undefined,
+    thematic_blocking: estThematique ? thematiqueBloquant : false,
     status: 'active',
   });
+  if (error) throw error;
+}
+
+// Le Défi reste additif par défaut (§5.2) — bascule réservée à la règle
+// thématique active, aucun effet sinon.
+export async function definirDefiBloquant(ruleInstanceId: string, bloquant: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('rule_instance')
+    .update({ thematic_blocking: bloquant })
+    .eq('id', ruleInstanceId)
+    .eq('is_thematic', true);
   if (error) throw error;
 }
 
@@ -510,7 +523,8 @@ export async function ajouterHabitudeDepuisReferentiel(
   childId: string,
   template: RuleTemplate,
   estThematique = false,
-  libellePersonnalise?: string
+  libellePersonnalise?: string,
+  thematiqueBloquant = false
 ): Promise<boolean> {
   const { data: toutesLesRegles, error } = await supabase
     .from('rule_instance')
@@ -521,7 +535,7 @@ export async function ajouterHabitudeDepuisReferentiel(
   if (actives.length >= 6) return false;
   if (estThematique && actives.some((r) => r.is_thematic)) return false;
 
-  await inserterNouvelleRegle(childId, template, estThematique, libellePersonnalise);
+  await inserterNouvelleRegle(childId, template, estThematique, libellePersonnalise, thematiqueBloquant);
   return true;
 }
 
@@ -577,6 +591,34 @@ export async function definirSeuilQuotidien(childId: string, seuil: number): Pro
   const { error: updateError } = await supabase
     .from('child')
     .update({ settings: { ...settingsExistants, dailyThreshold: seuil } })
+    .eq('id', childId);
+  if (updateError) throw updateError;
+}
+
+const SEUIL_HEBDOMADAIRE_DEFAUT = 5;
+const JOURS_PAR_SEMAINE = 7;
+
+export type SeuilHebdoInfo = { seuilActuel: number; seuilParDefaut: number; maxJours: number };
+
+// Pas de formule de recommandation pour le seuil hebdomadaire (contrairement
+// au quotidien, §5.4) — seul le défaut fixé à l'onboarding (5/7) sert de
+// repère.
+export async function fetchSeuilHebdoInfo(childId: string): Promise<SeuilHebdoInfo> {
+  const { data: enfant, error } = await supabase.from('child').select('settings').eq('id', childId).single();
+  if (error || !enfant) throw error ?? new Error('child introuvable');
+  const seuilActuel = (enfant.settings as { weeklyThreshold?: number })?.weeklyThreshold ?? SEUIL_HEBDOMADAIRE_DEFAUT;
+  return { seuilActuel, seuilParDefaut: SEUIL_HEBDOMADAIRE_DEFAUT, maxJours: JOURS_PAR_SEMAINE };
+}
+
+// Seuil borné à [1, 7] : le nombre de jours de la semaine où le seuil
+// quotidien doit être atteint pour débloquer la récompense hebdomadaire.
+export async function definirSeuilHebdomadaire(childId: string, seuil: number): Promise<void> {
+  const { data: enfant, error } = await supabase.from('child').select('settings').eq('id', childId).single();
+  if (error || !enfant) throw error ?? new Error('child introuvable');
+  const settingsExistants = (enfant.settings as Record<string, unknown>) ?? {};
+  const { error: updateError } = await supabase
+    .from('child')
+    .update({ settings: { ...settingsExistants, weeklyThreshold: seuil } })
     .eq('id', childId);
   if (updateError) throw updateError;
 }

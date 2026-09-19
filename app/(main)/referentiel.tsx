@@ -9,6 +9,7 @@ import type { RuleCategory, RuleTemplate } from '../../core/referential/types';
 import { useActiveChild } from '../../data/activeChild';
 import {
   ajouterHabitudeDepuisReferentiel,
+  definirDefiBloquant,
   definirSeuilQuotidien,
   fetchSeuilInfo,
   retirerHabitudeActive,
@@ -41,7 +42,9 @@ export default function Referentiel() {
   const [ageReel, setAgeReel] = useState<number | null>(null);
   const [ageAffiche, setAgeAffiche] = useState<number | null>(null);
   const [idsActifs, setIdsActifs] = useState<Map<string, ActiveInfo>>(new Map());
-  const [defiActif, setDefiActif] = useState<{ ruleInstanceId: string; label: string } | null>(null);
+  const [defiActif, setDefiActif] = useState<{ ruleInstanceId: string; label: string; bloquant: boolean } | null>(
+    null
+  );
   const [auMaximum, setAuMaximum] = useState(false);
   const [mode, setMode] = useState<Mode>('habitude');
   const [filtreCategorie, setFiltreCategorie] = useState<RuleCategory | null>(null);
@@ -49,6 +52,7 @@ export default function Referentiel() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editionId, setEditionId] = useState<string | null>(null);
   const [libelleEdite, setLibelleEdite] = useState('');
+  const [bloquantEdite, setBloquantEdite] = useState(false);
 
   async function charger(childIdActuel: string) {
     setError(false);
@@ -56,7 +60,10 @@ export default function Referentiel() {
       const [{ data: child, error: childError }, tous, { data: regles, error: reglesError }] = await Promise.all([
         supabase.from('child').select('birth_date').eq('id', childIdActuel).single(),
         fetchRuleTemplates(),
-        supabase.from('rule_instance').select('id, template_id, status, is_thematic, label').eq('child_id', childIdActuel),
+        supabase
+          .from('rule_instance')
+          .select('id, template_id, status, is_thematic, thematic_blocking, label')
+          .eq('child_id', childIdActuel),
       ]);
       if (childError || !child) throw childError ?? new Error('child introuvable');
       if (reglesError) throw reglesError;
@@ -74,7 +81,11 @@ export default function Referentiel() {
       setIdsActifs(map);
       setAuMaximum(actives.length >= 6);
       const thematique = actives.find((r) => r.is_thematic);
-      setDefiActif(thematique ? { ruleInstanceId: thematique.id, label: thematique.label } : null);
+      setDefiActif(
+        thematique
+          ? { ruleInstanceId: thematique.id, label: thematique.label, bloquant: thematique.thematic_blocking }
+          : null
+      );
     } catch {
       setError(true);
     }
@@ -96,25 +107,47 @@ export default function Referentiel() {
   function commencerEdition(template: RuleTemplate) {
     setEditionId(template.id);
     setLibelleEdite(template.label);
+    setBloquantEdite(false);
   }
 
   function annulerEdition() {
     setEditionId(null);
     setLibelleEdite('');
+    setBloquantEdite(false);
   }
 
   async function ajouter(template: RuleTemplate) {
     if (!childId) return;
     setBusyId(template.id);
     try {
-      const ok = await ajouterHabitudeDepuisReferentiel(childId, template, mode === 'defi', libelleEdite);
+      const ok = await ajouterHabitudeDepuisReferentiel(
+        childId,
+        template,
+        mode === 'defi',
+        libelleEdite,
+        mode === 'defi' && bloquantEdite
+      );
       if (ok) {
         setEditionId(null);
         setLibelleEdite('');
+        setBloquantEdite(false);
         await charger(childId);
       } else {
         setAuMaximum(true);
       }
+    } catch {
+      setError(true);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function basculerDefiBloquant() {
+    if (!defiActif) return;
+    setBusyId(defiActif.ruleInstanceId);
+    try {
+      await definirDefiBloquant(defiActif.ruleInstanceId, !defiActif.bloquant);
+      if (childId) await charger(childId);
     } catch {
       setError(true);
     } finally {
@@ -191,6 +224,7 @@ export default function Referentiel() {
 
       <View style={styles.body}>
         <Text style={styles.subtitle}>{strings['referentiel.subtitle']}</Text>
+        <Text style={styles.effectiveTomorrow}>{strings['referentiel.effectiveTomorrow']}</Text>
 
         {error ? <Text style={styles.error}>{strings['referentiel.error']}</Text> : null}
 
@@ -272,6 +306,21 @@ export default function Referentiel() {
               {remplir(strings['referentiel.defiAlreadySet'], { firstName: enfantActif.firstName, label: defiActif.label })}
             </Text>
             <Text style={styles.noticeSubtext}>{strings['referentiel.defiAlreadySetBody']}</Text>
+
+            <View style={styles.blockingRow}>
+              <View style={styles.blockingTextWrap}>
+                <Text style={styles.blockingLabel}>{strings['referentiel.defiBlockingLabel']}</Text>
+                <Text style={styles.blockingBody}>{strings['referentiel.defiBlockingBody']}</Text>
+              </View>
+              <TouchableOpacity
+                style={[accentStyles.toggle, defiActif.bloquant && accentStyles.toggleActive]}
+                onPress={basculerDefiBloquant}
+                disabled={busyId === defiActif.ruleInstanceId}
+              >
+                <View style={[styles.toggleKnob, defiActif.bloquant && styles.toggleKnobActive]} />
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
               onPress={() => confirmerRetrait(defiActif.ruleInstanceId)}
               disabled={busyId === defiActif.ruleInstanceId}
@@ -298,7 +347,7 @@ export default function Referentiel() {
                       style={[
                         styles.item,
                         enEdition && styles.itemEditing,
-                        { borderLeftColor: couleurCategorie(template.category) },
+                        { borderColor: couleurCategorie(template.category) },
                       ]}
                     >
                       {enEdition ? (
@@ -310,6 +359,20 @@ export default function Referentiel() {
                             accessibilityLabel={strings['referentiel.editLabel']}
                             multiline
                           />
+                          {mode === 'defi' && (
+                            <View style={styles.blockingRow}>
+                              <View style={styles.blockingTextWrap}>
+                                <Text style={styles.blockingLabel}>{strings['referentiel.defiBlockingLabel']}</Text>
+                                <Text style={styles.blockingBody}>{strings['referentiel.defiBlockingBody']}</Text>
+                              </View>
+                              <TouchableOpacity
+                                style={[accentStyles.toggle, bloquantEdite && accentStyles.toggleActive]}
+                                onPress={() => setBloquantEdite((v) => !v)}
+                              >
+                                <View style={[styles.toggleKnob, bloquantEdite && styles.toggleKnobActive]} />
+                              </TouchableOpacity>
+                            </View>
+                          )}
                           <View style={styles.editActions}>
                             <TouchableOpacity onPress={annulerEdition}>
                               <Text style={styles.editCancel}>{strings['referentiel.editCancel']}</Text>
@@ -401,6 +464,17 @@ function makeAccentStyles(accent: string) {
       fontFamily: fonts.bodyBold,
       fontSize: 13,
     },
+    toggle: {
+      width: 46,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.border,
+      padding: 3,
+      justifyContent: 'center',
+    },
+    toggleActive: {
+      backgroundColor: accent,
+    },
   });
 }
 
@@ -417,6 +491,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.inkMuted,
     marginTop: -6,
+  },
+  effectiveTomorrow: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.inkMuted,
+    fontStyle: 'italic',
   },
   error: {
     color: colors.danger,
@@ -493,6 +573,36 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.inkMuted,
   },
+  blockingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 10,
+  },
+  blockingTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  blockingLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.ink,
+  },
+  blockingBody: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    color: colors.inkMuted,
+  },
+  toggleKnob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#fff',
+  },
+  toggleKnobActive: {
+    transform: [{ translateX: 18 }],
+  },
   section: {
     gap: 10,
   },
@@ -508,7 +618,7 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: colors.surface,
     borderRadius: 16,
-    borderLeftWidth: 5,
+    borderWidth: 2,
     padding: 14,
     shadowColor: colors.ink,
     shadowOpacity: 0.06,
