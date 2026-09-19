@@ -19,7 +19,9 @@ export const today = {
 
   'today.howItWorksButton': 'Comment ça marche ?',
   'today.howItWorksTitle': 'Comment ça marche',
-  'today.howItWorksRule': 'Chaque habitude cochée respectée rapporte ses points.',
+  'today.howItWorksRulePrefix': 'Chaque habitude cochée respectée rapporte',
+  'today.howItWorksRuleBold': '1 point',
+  'today.howItWorksRuleSuffix': '.',
   'today.howItWorksDefi': 'Le Défi rapporte {points} points, comme les autres.',
   'today.howItWorksDefiBlocking':
     "Le Défi rapporte {points} points. S'il n'est pas respecté, pas de récompense aujourd'hui, même si le total suffit.",

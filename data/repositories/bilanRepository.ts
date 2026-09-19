@@ -70,6 +70,17 @@ async function fetchIdsReglesEnEchecEnAttente(childId: string): Promise<Set<stri
   );
 }
 
+// Une journée modifiée après clôture (jusqu'à minuit, voir
+// peutModifierJourCloture) change le score : le bilan déjà généré ne doit
+// pas rester figé sur des données caduques. On supprime l'ancien bilan puis
+// on laisse genererBilanDuJour le reconstruire — jamais utilisé pour le
+// passage normal de clôture, seulement pour une correction a posteriori.
+export async function regenererBilanDuJourSiModifie(childId: string, dayEntryId: string, timezone: string): Promise<void> {
+  const { error: deleteError } = await supabase.from('daily_digest').delete().eq('day_entry_id', dayEntryId);
+  if (deleteError) throw deleteError;
+  await genererBilanDuJour(childId, dayEntryId, timezone);
+}
+
 // §6.1 : passe quotidienne à la clôture. Idempotent — un bilan déjà figé
 // pour ce day_entry n'est jamais recalculé (garde-fou #17, même principe
 // que week_summary).

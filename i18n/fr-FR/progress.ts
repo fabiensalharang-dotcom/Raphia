@@ -13,4 +13,7 @@ export const progress = {
   'progress.daysOutOfSeven': 'jours sur 7',
   'progress.openProgress': 'Voir la progression',
   'progress.error': 'Impossible de charger la progression, réessaie.',
+  'progress.thresholdLine': 'seuil {seuil}',
+  'progress.usageCount': 'Suivie {count} jour',
+  'progress.usageCountPlural': 'Suivie {count} jours',
 };

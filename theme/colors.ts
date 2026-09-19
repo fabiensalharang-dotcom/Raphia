@@ -1,4 +1,5 @@
 import type { RuleCategory } from '../core/referential/types';
+import type { RewardCategory } from '../core/rewards/types';
 
 // Direction validée avec l'utilisateur (retour famille pilote, sept. 2026) :
 // couleurs vives par thématique, accent chaud, fond crème plutôt que blanc pur.
@@ -30,4 +31,15 @@ export const categoryColors: Record<RuleCategory, string> = {
 // ou donnée inattendue) reste lisible plutôt que de casser l'écran.
 export function couleurCategorie(category: RuleCategory | null | undefined): string {
   return (category && categoryColors[category]) || colors.inkMuted;
+}
+
+export const rewardCategoryColors: Record<RewardCategory, string> = {
+  relationnelle: '#E0568A',
+  privilege: '#C99A2E',
+  temps: '#4E7FE0',
+  materielle: '#4CAF7D',
+};
+
+export function couleurCategorieRecompense(category: RewardCategory | null | undefined): string {
+  return (category && rewardCategoryColors[category]) || colors.inkMuted;
 }

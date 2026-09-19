@@ -9,7 +9,11 @@ import Confetti from '../../components/Confetti';
 import Pousse from '../../components/Pousse';
 import type { RuleCategory } from '../../core/referential/types';
 import { useActiveChild } from '../../data/activeChild';
-import { genererBilanDuJour, genererBilanHebdomadaireSiAbsent } from '../../data/repositories/bilanRepository';
+import {
+  genererBilanDuJour,
+  genererBilanHebdomadaireSiAbsent,
+  regenererBilanDuJourSiModifie,
+} from '../../data/repositories/bilanRepository';
 import { estDernierJourDeLaSemaine, estJourModifiable, peutModifierJourCloture } from '../../core/scoring';
 import type { EtatRegle } from '../../core/scoring/types';
 import {
@@ -43,16 +47,6 @@ import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
 import { colors, couleurCategorie } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
-
-const ICONE_PAR_CATEGORIE: Record<RuleCategory, keyof typeof Ionicons.glyphMap> = {
-  autonomie: 'walk-outline',
-  securite: 'shield-checkmark-outline',
-  social: 'chatbubbles-outline',
-  scolaire: 'book-outline',
-  ecrans: 'tablet-portrait-outline',
-  emotions: 'heart-outline',
-  organisation: 'list-outline',
-};
 
 function dateDuJourDansFuseau(timezone: string): string {
   const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -270,11 +264,24 @@ export default function Today() {
     peutModifierJourCloture(dayView.date, new Date(), timezone);
   const modifiable = modifiableAvantCloture || modifiableApresCloture;
 
+  async function regenererBilanSiJourDejaCloture(vue: DayEntryView) {
+    // Une case cochée/décochée après clôture (jusqu'à minuit) change le
+    // score : le bilan déjà généré ce soir ne doit pas rester désaligné.
+    if (!vue.isClosed || !childId || !timezone) return;
+    try {
+      await regenererBilanDuJourSiModifie(childId, vue.dayEntryId, timezone);
+    } catch {
+      // Couche secondaire : une erreur ici ne doit jamais bloquer le
+      // cochage, déjà acté localement et côté serveur.
+    }
+  }
+
   async function basculer(ruleInstanceId: string, etatActuel: EtatRegle) {
     if (!dayView || !modifiable) return;
     const nouvelEtat = suivantEtat(etatActuel);
     const nouvelleVue = await mettreAJourCochage(dayView, ruleInstanceId, nouvelEtat);
     setDayView(nouvelleVue);
+    regenererBilanSiJourDejaCloture(nouvelleVue);
   }
 
   async function basculerNonApplicable(ruleInstanceId: string, etatActuel: EtatRegle) {
@@ -282,6 +289,7 @@ export default function Today() {
     const nouvelEtat: EtatRegle = etatActuel === 'not_applicable' ? 'not_respected' : 'not_applicable';
     const nouvelleVue = await mettreAJourCochage(dayView, ruleInstanceId, nouvelEtat);
     setDayView(nouvelleVue);
+    regenererBilanSiJourDejaCloture(nouvelleVue);
   }
 
   function confirmerCloture() {
@@ -465,7 +473,10 @@ export default function Today() {
             <View style={styles.ctaWrap}>
               <Text style={styles.closed}>{strings['today.dayClosed']}</Text>
               {modifiableApresCloture && (
-                <Text style={styles.editableNote}>{strings['today.editableUntilMidnight']}</Text>
+                <View style={styles.editableNoteRow}>
+                  <Ionicons name="lock-open-outline" size={13} color={colors.inkMuted} />
+                  <Text style={styles.editableNote}>{strings['today.editableUntilMidnight']}</Text>
+                </View>
               )}
             </View>
           ) : !modifiableAvantCloture ? (
@@ -533,23 +544,39 @@ export default function Today() {
       <View style={styles.modalOverlay}>
         <View style={styles.modalCard}>
           <Text style={styles.modalTitle}>{strings['today.howItWorksTitle']}</Text>
-          <Text style={styles.modalLine}>{strings['today.howItWorksRule']}</Text>
-          {defiCheck && (
+          <View style={[styles.modalRow, { backgroundColor: '#FFF3E6' }]}>
+            <Text style={styles.modalIcon}>✅</Text>
             <Text style={styles.modalLine}>
-              {remplir(strings[defiCheck.thematicBlocking ? 'today.howItWorksDefiBlocking' : 'today.howItWorksDefi'], {
-                points: defiCheck.bonusValue,
-              })}
+              {strings['today.howItWorksRulePrefix']}{' '}
+              <Text style={styles.modalLineBold}>{strings['today.howItWorksRuleBold']}</Text>
+              {strings['today.howItWorksRuleSuffix']}
             </Text>
+          </View>
+          {defiCheck && (
+            <View style={[styles.modalRow, { backgroundColor: '#FFF7DE' }]}>
+              <Text style={styles.modalIcon}>⭐</Text>
+              <Text style={styles.modalLine}>
+                {remplir(strings[defiCheck.thematicBlocking ? 'today.howItWorksDefiBlocking' : 'today.howItWorksDefi'], {
+                  points: defiCheck.bonusValue,
+                })}
+              </Text>
+            </View>
           )}
           {dayView && (
-            <Text style={styles.modalLine}>
-              {remplir(strings['today.howItWorksThreshold'], { seuil: dayView.thresholdApplied })}
-            </Text>
+            <View style={[styles.modalRow, { backgroundColor: '#EFE9FB' }]}>
+              <Text style={styles.modalIcon}>🎯</Text>
+              <Text style={styles.modalLine}>
+                {remplir(strings['today.howItWorksThreshold'], { seuil: dayView.thresholdApplied })}
+              </Text>
+            </View>
           )}
           {seuilHebdoAide !== null && (
-            <Text style={styles.modalLine}>
-              {remplir(strings['today.howItWorksWeekly'], { jours: seuilHebdoAide })}
-            </Text>
+            <View style={[styles.modalRow, { backgroundColor: '#E7F8F1' }]}>
+              <Text style={styles.modalIcon}>📅</Text>
+              <Text style={styles.modalLine}>
+                {remplir(strings['today.howItWorksWeekly'], { jours: seuilHebdoAide })}
+              </Text>
+            </View>
           )}
           <TouchableOpacity style={accentStyles.modalCloseButton} onPress={() => setAideOuverte(false)}>
             <Text style={styles.modalCloseLabel}>{strings['today.howItWorksClose']}</Text>
@@ -587,18 +614,9 @@ function RuleTile({ check, modifiable, onPress, onLongPress }: RuleTileProps) {
       onLongPress={onLongPress}
       disabled={!modifiable}
     >
-      <Ionicons
-        name={ICONE_PAR_CATEGORIE[check.category] ?? 'list-outline'}
-        size={64}
-        color={contenu}
-        style={[styles.tileIcon, { opacity: coche ? 0.28 : 0.16 }]}
-      />
       <View style={styles.tileEyebrowRow}>
         <Text style={[styles.tileCategory, { color: contenu, opacity: coche ? 0.85 : 0.7 }]}>
           {strings[`category.${check.category}`] ?? strings['category.organisation']}
-        </Text>
-        <Text style={[styles.tilePoints, { color: contenu }]}>
-          +{valeurPoints} {valeurPoints > 1 ? strings['today.pointsAbbrevPlural'] : strings['today.pointsAbbrevSingular']}
         </Text>
       </View>
       {(check.isThematic || check.status === 'acquired') && (
@@ -610,8 +628,9 @@ function RuleTile({ check, modifiable, onPress, onLongPress }: RuleTileProps) {
         </View>
       )}
       <Text style={[styles.tileLabel, { color: contenu }]}>{check.label}</Text>
+      <Text style={[styles.tileFiligrane, { color: contenu, opacity: coche ? 0.24 : 0.18 }]}>+{valeurPoints}</Text>
       <View style={[styles.tileCheck, { borderColor: coche ? '#fff' : fond }, coche && styles.tileCheckOn]}>
-        {coche ? <Ionicons name="checkmark" size={18} color={fond} /> : null}
+        {coche ? <Ionicons name="checkmark" size={16} color={fond} /> : null}
       </View>
     </TouchableOpacity>
   );
@@ -807,17 +826,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 6,
-    paddingRight: 34,
+    paddingRight: 26,
   },
   tileCategory: {
     fontFamily: fonts.bodyBold,
     fontSize: 10,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-  },
-  tilePoints: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 10,
   },
   tileBadgeRow: {
     flexDirection: 'row',
@@ -845,14 +860,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 17,
   },
+  tileFiligrane: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 4,
+    textAlign: 'center',
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 32,
+    lineHeight: 34,
+  },
   tileCheck: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 2.5,
+    top: 7,
+    right: 7,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -882,12 +907,16 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     marginTop: 18,
   },
+  editableNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
+  },
   editableNote: {
-    textAlign: 'center',
     color: colors.inkMuted,
     fontFamily: fonts.bodyMedium,
     fontSize: 12,
-    marginTop: 4,
   },
   ctaButtonDisabled: {
     opacity: 0.7,
@@ -973,11 +1002,25 @@ const styles = StyleSheet.create({
     color: colors.ink,
     marginBottom: 4,
   },
+  modalRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderRadius: 14,
+    padding: 10,
+  },
+  modalIcon: {
+    fontSize: 17,
+  },
   modalLine: {
+    flex: 1,
     fontFamily: fonts.bodyMedium,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.ink,
-    lineHeight: 20,
+    lineHeight: 19,
+  },
+  modalLineBold: {
+    fontFamily: fonts.bodyBold,
   },
   modalCloseLabel: {
     color: '#fff',

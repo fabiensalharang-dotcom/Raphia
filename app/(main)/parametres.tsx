@@ -219,18 +219,6 @@ export default function Parametres() {
           </View>
         )}
 
-        {enfantActif && (
-          <View style={styles.card}>
-            <Text style={styles.cardText}>
-              {strings['parametres.rewardsTitle']} {enfantActif.firstName}
-            </Text>
-            <Text style={styles.cardBody}>{strings['parametres.rewardsBody']}</Text>
-            <TouchableOpacity style={accentStyles.actionSecondary} onPress={() => router.push('/(main)/recompenses')}>
-              <Text style={accentStyles.actionSecondaryLabel}>{strings['parametres.rewardsButton']}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {enfantActif && seuilInfo && seuilHebdoInfo && (
           <View style={styles.card}>
             <Text style={styles.cardText}>

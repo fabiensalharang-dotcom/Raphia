@@ -10,6 +10,10 @@ export const referentiel = {
   'referentiel.modeHabitude': 'Habitude',
   'referentiel.modeDefi': 'Défi',
 
+  'referentiel.mySelection': 'Ma sélection',
+  'referentiel.wholeReferentiel': 'Tout le référentiel',
+  'referentiel.selectionEmpty': "Rien dans ta sélection pour l'instant — regarde du côté de « Tout le référentiel ».",
+
   'referentiel.ageLabel': 'Pour {age} ans',
   'referentiel.ageReset': 'Revenir à son âge',
 

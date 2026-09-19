@@ -12,6 +12,10 @@ import { strings } from '../../i18n/fr-FR';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
 
+function remplir(gabarit: string, slots: Record<string, unknown>): string {
+  return gabarit.replace(/\{(\w+)\}/g, (_, nom: string) => String(slots[nom] ?? ''));
+}
+
 const FENETRES = [4, 8, 12] as const;
 type Fenetre = (typeof FENETRES)[number];
 
@@ -27,6 +31,7 @@ export default function Progress() {
   const [fenetre, setFenetre] = useState<Fenetre>(4);
   const [vue, setVue] = useState<ProgressView | null>(null);
   const [error, setError] = useState(false);
+  const [seuilActuel, setSeuilActuel] = useState<number | null>(null);
 
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
   const { activeChildId, activeAccent } = useActiveChild();
@@ -55,6 +60,23 @@ export default function Progress() {
   }, [householdId]);
 
   useEffect(() => {
+    if (!childId) return;
+    let cancelled = false;
+    supabase
+      .from('child')
+      .select('settings')
+      .eq('id', childId)
+      .single()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setSeuilActuel((data?.settings as { dailyThreshold?: number } | null)?.dailyThreshold ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [childId]);
+
+  useEffect(() => {
     if (!childId || !timezone) return;
     let cancelled = false;
     fetchProgressView(childId, timezone, fenetre).then(
@@ -78,7 +100,7 @@ export default function Progress() {
   }
 
   const pointsConnus = (vue?.dailyPoints ?? []).filter((jour) => jour.pointsTotal !== null);
-  const maxPoints = Math.max(1, ...pointsConnus.map((jour) => jour.pointsTotal as number));
+  const maxPoints = Math.max(1, ...pointsConnus.map((jour) => jour.pointsTotal as number), seuilActuel ?? 0);
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
@@ -108,20 +130,40 @@ export default function Progress() {
             <Text style={styles.empty}>{strings['progress.pointsEmpty']}</Text>
           ) : (
             vue && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.pointsChart}>
-                  {vue.dailyPoints.map((jour) => {
-                    const hauteur =
-                      jour.pointsTotal === null ? 3 : Math.max(3, (jour.pointsTotal / maxPoints) * 100);
-                    return (
-                      <View
-                        key={jour.date}
-                        style={[accentStyles.pointsBar, { height: hauteur }, jour.pointsTotal === null && styles.pointsBarVide]}
-                      />
-                    );
-                  })}
+              <View style={styles.chartRow}>
+                <View style={styles.yAxis}>
+                  <Text style={styles.yAxisLabel}>{maxPoints}</Text>
+                  <Text style={styles.yAxisLabel}>{Math.round(maxPoints / 2)}</Text>
+                  <Text style={styles.yAxisLabel}>0</Text>
                 </View>
-              </ScrollView>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chartScroll}>
+                  <View style={styles.pointsChartWrap}>
+                    {seuilActuel !== null && seuilActuel > 0 && (
+                      <View style={[styles.thresholdLine, { bottom: `${(seuilActuel / maxPoints) * 100}%` }]}>
+                        <Text style={styles.thresholdLabel}>
+                          {remplir(strings['progress.thresholdLine'], { seuil: seuilActuel })}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.pointsChart}>
+                      {vue.dailyPoints.map((jour) => {
+                        const hauteur =
+                          jour.pointsTotal === null ? 3 : Math.max(3, (jour.pointsTotal / maxPoints) * 100);
+                        return (
+                          <View
+                            key={jour.date}
+                            style={[
+                              accentStyles.pointsBar,
+                              { height: `${hauteur}%` },
+                              jour.pointsTotal === null && styles.pointsBarVide,
+                            ]}
+                          />
+                        );
+                      })}
+                    </View>
+                  </View>
+                </ScrollView>
+              </View>
             )
           )}
         </View>
@@ -134,7 +176,14 @@ export default function Progress() {
             vue?.ruleSuccessRates.map((regle) => (
               <View key={regle.ruleInstanceId} style={styles.ruleRateRow}>
                 <View style={styles.ruleRateHeader}>
-                  <Text style={styles.ruleRateLabel}>{regle.label}</Text>
+                  <View style={styles.ruleRateNameWrap}>
+                    <Text style={styles.ruleRateLabel}>{regle.label}</Text>
+                    <Text style={styles.ruleRateUsage}>
+                      {remplir(strings[regle.joursApplicables === 1 ? 'progress.usageCount' : 'progress.usageCountPlural'], {
+                        count: regle.joursApplicables,
+                      })}
+                    </Text>
+                  </View>
                   <Text style={accentStyles.ruleRatePercent}>{Math.round(regle.tauxReussite * 100)} %</Text>
                 </View>
                 <View style={styles.barTrack}>
@@ -246,6 +295,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: fonts.bodySemiBold,
   },
+  chartRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  yAxis: {
+    height: 100,
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  yAxisLabel: {
+    fontSize: 10,
+    fontFamily: fonts.bodySemiBold,
+    color: colors.inkMuted,
+  },
+  chartScroll: {
+    flex: 1,
+  },
+  pointsChartWrap: {
+    position: 'relative',
+    borderLeftWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+    paddingLeft: 6,
+  },
+  thresholdLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderTopWidth: 2,
+    borderTopColor: colors.special,
+    borderStyle: 'dashed',
+  },
+  thresholdLabel: {
+    position: 'absolute',
+    right: 2,
+    top: -14,
+    fontSize: 9,
+    fontFamily: fonts.bodyBold,
+    color: colors.special,
+  },
   pointsChart: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -264,11 +353,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
   },
+  ruleRateNameWrap: {
+    flexShrink: 1,
+    gap: 2,
+  },
   ruleRateLabel: {
     fontSize: 15,
     fontFamily: fonts.bodyMedium,
     color: colors.ink,
-    flexShrink: 1,
+  },
+  ruleRateUsage: {
+    fontSize: 11,
+    fontFamily: fonts.bodyMedium,
+    color: colors.inkMuted,
   },
   barTrack: {
     flex: 1,

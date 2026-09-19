@@ -18,10 +18,6 @@ export const parametres = {
   'parametres.thresholdWeeklyResetButton': 'Revenir au réglage par défaut',
   'parametres.thresholdError': 'Impossible de mettre à jour le seuil, réessaie.',
 
-  'parametres.rewardsTitle': 'Le menu de récompenses de',
-  'parametres.rewardsBody': 'Parcours toutes les récompenses disponibles et gère celles proposées.',
-  'parametres.rewardsButton': 'Voir le menu',
-
   'parametres.addChildTitle': 'Ajouter un enfant',
   'parametres.addChildBody': 'Crée un nouveau tableau, avec ses propres habitudes et récompenses.',
   'parametres.addChildButton': 'Ajouter un enfant',

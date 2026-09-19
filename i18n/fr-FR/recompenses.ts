@@ -1,6 +1,8 @@
 export const recompenses = {
   'recompenses.title': 'Menu de récompenses',
+  'recompenses.modeTitle': 'Récompenses',
   'recompenses.subtitle': 'Toutes les récompenses disponibles pour son âge.',
+  'recompenses.selectionEmpty': "Rien au menu pour l'instant — regarde du côté de « Tout le référentiel ».",
   'recompenses.error': 'Impossible de charger le menu, réessaie.',
 
   'recompenses.dailyTitle': 'Chaque jour',
