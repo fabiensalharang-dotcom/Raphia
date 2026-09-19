@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/typography';
@@ -13,8 +14,9 @@ type ScreenHeaderProps = {
 // accentColor est optionnel : les écrans sans enfant actif (inscription,
 // connexion) gardent la couleur par défaut.
 export default function ScreenHeader({ title, accentColor }: ScreenHeaderProps) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.header, accentColor ? { backgroundColor: accentColor } : null]}>
+    <View style={[styles.header, { paddingTop: insets.top + 12 }, accentColor ? { backgroundColor: accentColor } : null]}>
       <Text style={styles.title}>{title}</Text>
     </View>
   );
@@ -25,7 +27,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    paddingTop: 20,
     paddingBottom: 20,
     paddingHorizontal: 22,
   },

@@ -29,7 +29,7 @@ const config: ExpoConfig = {
   android: {
     package: 'fr.fsal.tableaucomportement',
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
+      backgroundColor: '#FBF6EE',
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',

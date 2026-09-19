@@ -316,16 +316,24 @@ export async function accepterRegleAcquise(suggestionId: string, childId: string
   await marquerSuggestionResolue(suggestionId, 'accepted');
 }
 
-async function inserterNouvelleRegle(childId: string, template: RuleTemplate): Promise<void> {
+const BONUS_THEMATIQUE_DEFAUT = 2;
+
+async function inserterNouvelleRegle(
+  childId: string,
+  template: RuleTemplate,
+  estThematique = false,
+  libellePersonnalise?: string
+): Promise<void> {
   const { error } = await supabase.from('rule_instance').insert({
     child_id: childId,
     template_id: template.id,
-    label: template.label,
+    label: libellePersonnalise?.trim() || template.label,
     short_label: template.shortLabel,
     icon: template.icon,
     category: template.category,
     points: template.defaultPoints,
-    is_thematic: false,
+    is_thematic: estThematique,
+    bonus_value: estThematique ? BONUS_THEMATIQUE_DEFAUT : undefined,
     status: 'active',
   });
   if (error) throw error;
@@ -495,13 +503,25 @@ export async function fetchRecompenseInfo(rewardInstanceId: string): Promise<Rec
 // §1.2 : réutilisé à la fois par le pilotage (suggestion à résoudre) et par
 // la consultation libre du référentiel depuis les Réglages (pas de
 // suggestion à marquer, juste la contrainte des 6 règles actives).
-export async function ajouterHabitudeDepuisReferentiel(childId: string, template: RuleTemplate): Promise<boolean> {
-  const { data: toutesLesRegles, error } = await supabase.from('rule_instance').select('status').eq('child_id', childId);
+// D8 : une règle thématique ne peut être ajoutée que s'il n'y en a pas déjà
+// une active pour cet enfant — contrainte dure, vérifiée ici et pas
+// seulement à l'écran.
+export async function ajouterHabitudeDepuisReferentiel(
+  childId: string,
+  template: RuleTemplate,
+  estThematique = false,
+  libellePersonnalise?: string
+): Promise<boolean> {
+  const { data: toutesLesRegles, error } = await supabase
+    .from('rule_instance')
+    .select('status, is_thematic')
+    .eq('child_id', childId);
   if (error) throw error;
   const actives = (toutesLesRegles ?? []).filter((r) => r.status === 'active');
   if (actives.length >= 6) return false;
+  if (estThematique && actives.some((r) => r.is_thematic)) return false;
 
-  await inserterNouvelleRegle(childId, template);
+  await inserterNouvelleRegle(childId, template, estThematique, libellePersonnalise);
   return true;
 }
 
@@ -509,4 +529,54 @@ export async function ajouterRegleChoisie(suggestionId: string, childId: string,
   const ok = await ajouterHabitudeDepuisReferentiel(childId, template);
   if (ok) await marquerSuggestionResolue(suggestionId, 'accepted');
   return ok;
+}
+
+// Retrait manuel d'une règle active, à l'initiative du parent (pas via une
+// suggestion de pilotage) — permet de libérer un emplacement ou de
+// remplacer une habitude qui ne convient plus. Les règles acquises ne
+// passent jamais par ce chemin : seul le pilotage (§6.2, D9) les fait
+// évoluer, une à la fois.
+export async function retirerHabitudeActive(ruleInstanceId: string): Promise<void> {
+  const { error } = await supabase
+    .from('rule_instance')
+    .update({ status: 'retired', retired_at: new Date().toISOString() })
+    .eq('id', ruleInstanceId)
+    .eq('status', 'active');
+  if (error) throw error;
+}
+
+export type SeuilInfo = { seuilActuel: number; seuilRecommande: number; pointsMax: number };
+
+// §5.4 : le seuil recommandé est recalculé sur les règles actives réelles de
+// l'enfant, pas figé à l'onboarding — sert à la jauge réglable des Réglages.
+export async function fetchSeuilInfo(childId: string): Promise<SeuilInfo> {
+  const { data: enfant, error } = await supabase.from('child').select('settings').eq('id', childId).single();
+  if (error || !enfant) throw error ?? new Error('child introuvable');
+  const seuilActuel = (enfant.settings as { dailyThreshold?: number })?.dailyThreshold ?? 1;
+
+  const { data: regles, error: reglesError } = await supabase
+    .from('rule_instance')
+    .select('points, is_thematic, bonus_value, status')
+    .eq('child_id', childId);
+  if (reglesError) throw reglesError;
+
+  const actives = (regles ?? []).filter((r) => r.status === 'active');
+  const pointsActives = actives.filter((r) => !r.is_thematic).map((r) => r.points);
+  const bonusThematique = actives.find((r) => r.is_thematic)?.bonus_value ?? 0;
+  const pointsMax = pointsActives.reduce((total, points) => total + points, 0) + bonusThematique;
+
+  return { seuilActuel, seuilRecommande: calculerSeuilPropose(pointsActives, bonusThematique), pointsMax };
+}
+
+// Seuil borné à [1, pointsMax] : au-delà du maximum théorique des règles
+// actives, la récompense deviendrait inaccessible.
+export async function definirSeuilQuotidien(childId: string, seuil: number): Promise<void> {
+  const { data: enfant, error } = await supabase.from('child').select('settings').eq('id', childId).single();
+  if (error || !enfant) throw error ?? new Error('child introuvable');
+  const settingsExistants = (enfant.settings as Record<string, unknown>) ?? {};
+  const { error: updateError } = await supabase
+    .from('child')
+    .update({ settings: { ...settingsExistants, dailyThreshold: seuil } })
+    .eq('id', childId);
+  if (updateError) throw updateError;
 }

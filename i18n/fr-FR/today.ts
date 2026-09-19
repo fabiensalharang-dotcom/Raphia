@@ -31,6 +31,7 @@ export const today = {
   'nav.today': "Aujourd'hui",
   'nav.progress': 'Progrès',
   'nav.pilotage': 'Idées',
+  'nav.referentiel': 'Référentiel',
   'nav.bilan': 'Bilan',
   'nav.parametres': 'Réglages',
 

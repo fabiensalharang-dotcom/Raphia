@@ -224,3 +224,13 @@ export async function supprimerCompte(householdId: string): Promise<void> {
 
   await supabase.auth.signOut();
 }
+
+// Retrait d'un seul enfant du foyer — le foyer lui-même et les autres
+// enfants ne sont pas touchés. La cascade en base (rule_instance, day_entry,
+// reward_instance, pilotage_suggestion, etc. — toutes en `on delete cascade`
+// sur child_id) supprime le reste. Décider si c'est le dernier enfant du
+// foyer relève de l'écran appelant, pas de ce repository.
+export async function supprimerEnfant(childId: string): Promise<void> {
+  const { error } = await supabase.from('child').delete().eq('id', childId);
+  if (error) throw error;
+}

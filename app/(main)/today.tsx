@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ChildSwitcher from '../../components/ChildSwitcher';
 import Pousse from '../../components/Pousse';
@@ -94,7 +95,11 @@ export default function Today() {
   const aPlusieursEnfants = enfantsFoyer.length > 1;
   const params = useLocalSearchParams<{ activateChildId?: string }>();
   const childId = activeChildId;
-  const accentStyles = useMemo(() => makeAccentStyles(activeAccent.accent), [activeAccent.accent]);
+  const insets = useSafeAreaInsets();
+  const accentStyles = useMemo(
+    () => makeAccentStyles(activeAccent.accent, insets.top),
+    [activeAccent.accent, insets.top]
+  );
 
   // Arrivée depuis la configuration d'un enfant supplémentaire (Réglages) :
   // on bascule directement sur son tableau plutôt que de rester sur le
@@ -433,7 +438,7 @@ function RuleTile({ check, modifiable, onPress, onLongPress }: RuleTileProps) {
         {check.label}
       </Text>
       <View style={[styles.tileCheck, coche && styles.tileCheckOn]}>
-        {coche ? <Ionicons name="checkmark" size={12} color={fond} /> : null}
+        {coche ? <Ionicons name="checkmark" size={18} color={fond} /> : null}
       </View>
     </TouchableOpacity>
   );
@@ -441,13 +446,13 @@ function RuleTile({ check, modifiable, onPress, onLongPress }: RuleTileProps) {
 
 // §1.2 : couleur choisie par enfant (« Ajoute un enfant ») — seules les
 // quelques propriétés qui en dépendent sortent du StyleSheet statique.
-function makeAccentStyles(accent: string) {
+function makeAccentStyles(accent: string, safeAreaTop: number) {
   return StyleSheet.create({
     header: {
       backgroundColor: accent,
       borderBottomLeftRadius: 30,
       borderBottomRightRadius: 30,
-      paddingTop: 20,
+      paddingTop: safeAreaTop + 12,
       paddingBottom: 24,
       paddingHorizontal: 22,
     },
@@ -545,12 +550,16 @@ const styles = StyleSheet.create({
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    flexWrap: 'wrap',
     gap: 8,
   },
   scoreSuffix: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 15,
     color: colors.inkMuted,
+    flexShrink: 1,
+    flexGrow: 1,
+    minWidth: 0,
   },
   gaugeTrack: {
     height: 14,
@@ -633,11 +642,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.75)',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2.5,
+    borderColor: 'rgba(255,255,255,0.85)',
     alignItems: 'center',
     justifyContent: 'center',
   },

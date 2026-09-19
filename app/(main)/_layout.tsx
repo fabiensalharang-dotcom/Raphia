@@ -14,7 +14,7 @@ export default function MainLayout() {
           headerShown: false,
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.inkMuted,
-          tabBarLabelStyle: { fontFamily: fonts.bodySemiBold, fontSize: 11 },
+          tabBarLabelStyle: { fontFamily: fonts.bodySemiBold, fontSize: 10 },
           tabBarStyle: { height: 72, paddingBottom: 10, paddingTop: 8 },
         }}
       >
@@ -40,6 +40,13 @@ export default function MainLayout() {
           }}
         />
         <Tabs.Screen
+          name="referentiel"
+          options={{
+            title: strings['nav.referentiel'],
+            tabBarIcon: ({ color, size }) => <Ionicons name="library" color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen
           name="bilan"
           options={{
             title: strings['nav.bilan'],
@@ -53,7 +60,6 @@ export default function MainLayout() {
             tabBarIcon: ({ color, size }) => <Ionicons name="settings" color={color} size={size} />,
           }}
         />
-        <Tabs.Screen name="referentiel" options={{ href: null }} />
       </Tabs>
     </ActiveChildProvider>
   );

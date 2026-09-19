@@ -1,12 +1,13 @@
 import { Redirect, router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import ChildSwitcher from '../../components/ChildSwitcher';
 import ColorPicker from '../../components/ColorPicker';
 import ScreenHeader from '../../components/ScreenHeader';
 import { useActiveChild } from '../../data/activeChild';
-import { exporterDonneesFoyer, supprimerCompte } from '../../data/repositories/accountRepository';
+import { exporterDonneesFoyer, supprimerCompte, supprimerEnfant } from '../../data/repositories/accountRepository';
+import { definirSeuilQuotidien, fetchSeuilInfo, type SeuilInfo } from '../../data/repositories/pilotageRepository';
 import { supabase } from '../../data/supabaseClient';
 import { useOnboardingState } from '../../data/useOnboardingState';
 import { strings } from '../../i18n/fr-FR';
@@ -25,6 +26,25 @@ export default function Parametres() {
   const [exportErreur, setExportErreur] = useState(false);
   const [suppressionEnCours, setSuppressionEnCours] = useState(false);
   const [suppressionErreur, setSuppressionErreur] = useState(false);
+  const [seuilInfo, setSeuilInfo] = useState<SeuilInfo | null>(null);
+  const [seuilErreur, setSeuilErreur] = useState(false);
+  const [retraitEnCours, setRetraitEnCours] = useState(false);
+  const [retraitErreur, setRetraitErreur] = useState(false);
+
+  useEffect(() => {
+    if (!activeChildId) return;
+    let cancelled = false;
+    fetchSeuilInfo(activeChildId)
+      .then((info) => {
+        if (!cancelled) setSeuilInfo(info);
+      })
+      .catch(() => {
+        if (!cancelled) setSeuilErreur(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeChildId]);
 
   async function changerCouleur(cle: AccentColorKey) {
     if (!activeChildId) return;
@@ -32,6 +52,57 @@ export default function Parametres() {
     const settingsExistants = (enfant?.settings as Record<string, unknown>) ?? {};
     await supabase.from('child').update({ settings: { ...settingsExistants, themeColor: cle } }).eq('id', activeChildId);
     await refreshChildren();
+  }
+
+  async function ajusterSeuil(delta: number) {
+    if (!activeChildId || !seuilInfo) return;
+    const nouveauSeuil = Math.max(1, Math.min(seuilInfo.pointsMax, seuilInfo.seuilActuel + delta));
+    if (nouveauSeuil === seuilInfo.seuilActuel) return;
+    setSeuilErreur(false);
+    try {
+      await definirSeuilQuotidien(activeChildId, nouveauSeuil);
+      setSeuilInfo({ ...seuilInfo, seuilActuel: nouveauSeuil });
+    } catch {
+      setSeuilErreur(true);
+    }
+  }
+
+  async function reinitialiserSeuil() {
+    if (!activeChildId || !seuilInfo) return;
+    setSeuilErreur(false);
+    try {
+      await definirSeuilQuotidien(activeChildId, seuilInfo.seuilRecommande);
+      setSeuilInfo({ ...seuilInfo, seuilActuel: seuilInfo.seuilRecommande });
+    } catch {
+      setSeuilErreur(true);
+    }
+  }
+
+  async function retirerEnfant() {
+    if (!activeChildId) return;
+    setRetraitEnCours(true);
+    setRetraitErreur(false);
+    try {
+      await supprimerEnfant(activeChildId);
+      await refreshChildren();
+    } catch {
+      setRetraitErreur(true);
+    } finally {
+      setRetraitEnCours(false);
+    }
+  }
+
+  function confirmerRetraitEnfant() {
+    if (!enfantActif) return;
+    const message = strings['parametres.removeChildConfirmBody'].replace('{firstName}', enfantActif.firstName);
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) retirerEnfant();
+      return;
+    }
+    Alert.alert(strings['parametres.removeChildConfirmTitle'], message, [
+      { text: strings['parametres.removeChildCancelButton'], style: 'cancel' },
+      { text: strings['parametres.removeChildConfirmButton'], style: 'destructive', onPress: retirerEnfant },
+    ]);
   }
 
   async function exporter() {
@@ -112,6 +183,68 @@ export default function Parametres() {
           </View>
         )}
 
+        {enfantActif && seuilInfo && (
+          <View style={styles.card}>
+            <Text style={styles.cardText}>
+              {strings['parametres.thresholdTitle']} {enfantActif.firstName}
+            </Text>
+            <Text style={styles.cardBody}>{strings['parametres.thresholdBody']}</Text>
+            {seuilErreur ? <Text style={styles.error}>{strings['parametres.thresholdError']}</Text> : null}
+
+            <View style={styles.thresholdRow}>
+              <TouchableOpacity
+                style={[accentStyles.thresholdStepper, seuilInfo.seuilActuel <= 1 && styles.thresholdStepperDisabled]}
+                onPress={() => ajusterSeuil(-1)}
+                disabled={seuilInfo.seuilActuel <= 1}
+              >
+                <Text style={accentStyles.thresholdStepperLabel}>–</Text>
+              </TouchableOpacity>
+              <View style={styles.thresholdValueWrap}>
+                <Text style={accentStyles.thresholdValue}>{seuilInfo.seuilActuel}</Text>
+                <Text style={styles.thresholdMax}>
+                  / {seuilInfo.pointsMax} {strings['parametres.thresholdMaxSuffix']}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  accentStyles.thresholdStepper,
+                  seuilInfo.seuilActuel >= seuilInfo.pointsMax && styles.thresholdStepperDisabled,
+                ]}
+                onPress={() => ajusterSeuil(1)}
+                disabled={seuilInfo.seuilActuel >= seuilInfo.pointsMax}
+              >
+                <Text style={accentStyles.thresholdStepperLabel}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.thresholdGaugeWrap}>
+              <View style={styles.thresholdGaugeTrack}>
+                <View
+                  style={[
+                    accentStyles.thresholdGaugeFill,
+                    { width: `${Math.min(100, (seuilInfo.seuilActuel / Math.max(1, seuilInfo.pointsMax)) * 100)}%` },
+                  ]}
+                />
+              </View>
+              <View
+                style={[
+                  styles.thresholdGaugeMark,
+                  { left: `${Math.min(100, (seuilInfo.seuilRecommande / Math.max(1, seuilInfo.pointsMax)) * 100)}%` },
+                ]}
+              />
+            </View>
+
+            {seuilInfo.seuilActuel !== seuilInfo.seuilRecommande && (
+              <TouchableOpacity onPress={reinitialiserSeuil}>
+                <Text style={accentStyles.thresholdReset}>
+                  {strings['parametres.thresholdRecommended'].replace('{value}', String(seuilInfo.seuilRecommande))} ·{' '}
+                  {strings['parametres.thresholdResetButton']}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         <View style={styles.card}>
           <Text style={styles.cardText}>{strings['parametres.addChildTitle']}</Text>
           <Text style={styles.cardBody}>{strings['parametres.addChildBody']}</Text>
@@ -124,17 +257,22 @@ export default function Parametres() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardText}>{strings['parametres.referentielTitle']}</Text>
-          <Text style={styles.cardBody}>{strings['parametres.referentielBody']}</Text>
-          <TouchableOpacity
-            style={accentStyles.actionSecondary}
-            onPress={() => router.push(`/(main)/referentiel?childId=${activeChildId}`)}
-            disabled={!activeChildId}
-          >
-            <Text style={accentStyles.actionSecondaryLabel}>{strings['parametres.referentielButton']}</Text>
-          </TouchableOpacity>
-        </View>
+        {enfantActif && (
+          <View style={styles.card}>
+            <Text style={styles.cardText}>{strings['parametres.removeChildTitle']}</Text>
+            <Text style={styles.cardBody}>{strings['parametres.removeChildBody']}</Text>
+            {retraitErreur ? <Text style={styles.error}>{strings['parametres.removeChildError']}</Text> : null}
+            {children.length <= 1 ? (
+              <Text style={styles.notice}>{strings['parametres.removeChildLastOne']}</Text>
+            ) : (
+              <TouchableOpacity style={styles.actionDanger} onPress={confirmerRetraitEnfant} disabled={retraitEnCours}>
+                <Text style={styles.actionDangerLabel}>
+                  {retraitEnCours ? strings['parametres.deleteInProgress'] : strings['parametres.removeChildButton']}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.cardText}>{strings['parametres.exportTitle']}</Text>
@@ -186,6 +324,37 @@ function makeAccentStyles(accent: string) {
       textAlign: 'center',
       marginTop: 8,
     },
+    thresholdStepper: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      borderColor: accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    thresholdStepperLabel: {
+      color: accent,
+      fontFamily: fonts.bodyExtraBold,
+      fontSize: 20,
+      lineHeight: 22,
+    },
+    thresholdValue: {
+      fontFamily: fonts.bodyExtraBold,
+      fontSize: 32,
+      color: accent,
+    },
+    thresholdGaugeFill: {
+      height: '100%',
+      borderRadius: 100,
+      backgroundColor: accent,
+    },
+    thresholdReset: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 13,
+      color: accent,
+      marginTop: 4,
+    },
   });
 }
 
@@ -233,5 +402,49 @@ const styles = StyleSheet.create({
   actionDangerLabel: {
     color: colors.danger,
     fontFamily: fonts.bodyBold,
+  },
+  notice: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.inkMuted,
+    marginTop: 4,
+  },
+  thresholdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 18,
+    marginTop: 6,
+  },
+  thresholdStepperDisabled: {
+    opacity: 0.35,
+  },
+  thresholdValueWrap: {
+    alignItems: 'center',
+    minWidth: 90,
+  },
+  thresholdMax: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
+    color: colors.inkMuted,
+  },
+  thresholdGaugeWrap: {
+    position: 'relative',
+    marginTop: 14,
+  },
+  thresholdGaugeTrack: {
+    height: 14,
+    borderRadius: 100,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+  },
+  thresholdGaugeMark: {
+    position: 'absolute',
+    top: -3,
+    width: 3,
+    height: 20,
+    borderRadius: 2,
+    backgroundColor: colors.ink,
+    opacity: 0.4,
   },
 });
