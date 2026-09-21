@@ -39,6 +39,11 @@ export default function Parametres() {
   const [seuilErreur, setSeuilErreur] = useState(false);
   const [retraitEnCours, setRetraitEnCours] = useState(false);
   const [retraitErreur, setRetraitErreur] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+  }, []);
 
   useEffect(() => {
     if (!activeChildId) return;
@@ -209,6 +214,15 @@ export default function Parametres() {
       <ChildSwitcher />
 
       <View style={styles.body}>
+        {email && (
+          <View style={styles.card}>
+            <Text style={styles.cardText}>{strings['parametres.accountTitle']}</Text>
+            <Text style={styles.cardBody}>
+              {strings['parametres.accountConnectedAs'].replace('{email}', email)}
+            </Text>
+          </View>
+        )}
+
         {enfantActif && (
           <View style={styles.card}>
             <Text style={styles.cardText}>

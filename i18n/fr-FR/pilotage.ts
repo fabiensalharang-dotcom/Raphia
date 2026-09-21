@@ -2,7 +2,20 @@ export const pilotage = {
   'pilotage.title': 'Suggestions',
   'pilotage.openPilotage': 'Voir les suggestions',
   'pilotage.empty': 'Aucune suggestion pour le moment.',
+  'pilotage.emptyExplanation':
+    'Les premières suggestions demandent un peu de recul : une quinzaine de jours de suivi avant de voir apparaître quoi que ce soit ici.',
   'pilotage.error': 'Impossible de charger les suggestions, réessaie.',
+
+  'pilotage.howItWorksTitle': 'Comment ça marche',
+  'pilotage.howItWorksIntro':
+    'Une fois par semaine au maximum, Pousse repère une tendance et propose un ajustement — jamais une décision imposée.',
+  'pilotage.howItWorksRuleAcquired': 'Une habitude tenue 14 jours de suite : on peut la considérer comme acquise.',
+  'pilotage.howItWorksRuleFailing': "Une habitude non tenue depuis 10 jours : on peut la reformuler ou la découper.",
+  'pilotage.howItWorksThreshold':
+    'Le seuil du jour atteint chaque jour, ou au contraire rarement atteint, sur 3 semaines : on peut l’ajuster.',
+  'pilotage.howItWorksReward': 'Une récompense choisie presque à chaque fois : on peut enrichir le menu.',
+  'pilotage.howItWorksAge': "Un anniversaire : de nouvelles habitudes adaptées à l'âge sont proposées.",
+  'pilotage.howItWorksClose': 'Fermer',
 
   'pilotage.ruleAcquiredIntro': 'est respectée depuis 14 jours.',
   'pilotage.ruleAcquiredBody': 'On peut la considérer comme acquise et proposer un nouveau défi.',

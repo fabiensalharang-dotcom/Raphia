@@ -28,6 +28,7 @@ export type DayEntryView = {
   thresholdMet: boolean;
   pointsTotal: number;
   isClosed: boolean;
+  validatedAt: string | null;
   checks: RuleCheckView[];
 };
 
@@ -109,7 +110,7 @@ async function chargerDepuisServeur(
 
   let { data: dayEntry, error: dayEntryError } = await supabase
     .from('day_entry')
-    .select('id, points_total, threshold_applied, threshold_met, is_closed')
+    .select('id, points_total, threshold_applied, threshold_met, is_closed, validated_at')
     .eq('child_id', childId)
     .eq('date', date)
     .maybeSingle();
@@ -119,7 +120,7 @@ async function chargerDepuisServeur(
     const { data: cree, error: creationError } = await supabase
       .from('day_entry')
       .insert({ child_id: childId, date, threshold_applied: thresholdApplied })
-      .select('id, points_total, threshold_applied, threshold_met, is_closed')
+      .select('id, points_total, threshold_applied, threshold_met, is_closed, validated_at')
       .single();
     if (creationError) throw creationError;
     dayEntry = cree;
@@ -165,6 +166,7 @@ async function chargerDepuisServeur(
     thresholdMet: dayEntry.threshold_met,
     pointsTotal: dayEntry.points_total,
     isClosed: dayEntry.is_closed,
+    validatedAt: dayEntry.validated_at,
     checks,
   };
 }
@@ -188,6 +190,7 @@ async function pousserVersServeur(vue: DayEntryView): Promise<void> {
       threshold_met: vue.thresholdMet,
       is_closed: vue.isClosed,
       closed_at: vue.isClosed ? new Date().toISOString() : null,
+      validated_at: vue.validatedAt,
     })
     .eq('id', vue.dayEntryId);
 }
@@ -200,7 +203,7 @@ export async function fetchDayEntry(childId: string, date: string): Promise<DayE
 
   const { data: dayEntry, error: dayEntryError } = await supabase
     .from('day_entry')
-    .select('id, points_total, threshold_applied, threshold_met, is_closed')
+    .select('id, points_total, threshold_applied, threshold_met, is_closed, validated_at')
     .eq('child_id', childId)
     .eq('date', date)
     .maybeSingle();
@@ -248,6 +251,7 @@ export async function fetchDayEntry(childId: string, date: string): Promise<DayE
     thresholdMet: dayEntry.threshold_met,
     pointsTotal: dayEntry.points_total,
     isClosed: dayEntry.is_closed,
+    validatedAt: dayEntry.validated_at,
     checks,
   };
   await ecrireCache(cle, vue);
@@ -291,6 +295,7 @@ export async function getOrCreateDayEntry(
       const fusion: DayEntryView = {
         ...depuisServeur,
         isClosed: cache.isClosed || depuisServeur.isClosed,
+        validatedAt: cache.validatedAt ?? depuisServeur.validatedAt,
         checks: depuisServeur.checks.map((c) => {
           const local = cache.checks.find((lc) => lc.ruleInstanceId === c.ruleInstanceId);
           return local ? { ...c, etat: local.etat } : c;
@@ -334,14 +339,20 @@ export async function mettreAJourCochage(
   return nouvelleVue;
 }
 
-export async function cloturerJournee(vueActuelle: DayEntryView): Promise<DayEntryView> {
-  const nouvelleVue: DayEntryView = { ...vueActuelle, isClosed: true };
+// §5.5, §7.10 (nouvelle direction) : plus de clôture manuelle qui fige les
+// cases — la fenêtre de modification (estJourModifiable) fait déjà ce
+// travail. Valider ne sert qu'à distinguer un jour réellement passé en
+// revue (même à 0 point) d'un jour jamais ouvert, pour savoir si un bilan
+// doit être produit. Rejouable autant de fois que nécessaire tant que la
+// journée reste modifiable.
+export async function validerJournee(vueActuelle: DayEntryView): Promise<DayEntryView> {
+  const nouvelleVue: DayEntryView = { ...vueActuelle, isClosed: true, validatedAt: new Date().toISOString() };
   await ecrireCache(cleDeCache(vueActuelle.childId, vueActuelle.date), nouvelleVue);
 
   try {
     await pousserVersServeur(nouvelleVue);
   } catch {
-    // Idem : la clôture reste visible localement, se synchronisera plus tard.
+    // Idem : la validation reste visible localement, se synchronisera plus tard.
   }
 
   return nouvelleVue;

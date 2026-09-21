@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import ChildSwitcher from '../../components/ChildSwitcher';
 import ScreenHeader from '../../components/ScreenHeader';
@@ -51,6 +51,7 @@ export default function Pilotage() {
   const [suggestions, setSuggestions] = useState<SuggestionView[] | null>(null);
   const [prenomEnfant, setPrenomEnfant] = useState('');
   const [error, setError] = useState(false);
+  const [aideOuverte, setAideOuverte] = useState(false);
 
   useEffect(() => {
     if (!childId) return;
@@ -88,13 +89,25 @@ export default function Pilotage() {
   }
 
   return (
+    <>
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
       <ScreenHeader title={strings['pilotage.title']} accentColor={activeAccent.accent} />
       <ChildSwitcher />
 
       <View style={styles.body}>
+        <View style={styles.sectionTitleRow}>
+          <TouchableOpacity style={styles.helpButton} onPress={() => setAideOuverte(true)}>
+            <Text style={styles.helpButtonLabel}>?</Text>
+          </TouchableOpacity>
+        </View>
+
         {error ? <Text style={styles.error}>{strings['pilotage.error']}</Text> : null}
-        {suggestions && suggestions.length === 0 ? <Text style={styles.empty}>{strings['pilotage.empty']}</Text> : null}
+        {suggestions && suggestions.length === 0 ? (
+          <View>
+            <Text style={styles.empty}>{strings['pilotage.empty']}</Text>
+            <Text style={styles.emptyExplanation}>{strings['pilotage.emptyExplanation']}</Text>
+          </View>
+        ) : null}
 
         {suggestions?.map((suggestion) => (
           <CarteSuggestion
@@ -109,6 +122,39 @@ export default function Pilotage() {
         ))}
       </View>
     </ScrollView>
+
+    <Modal visible={aideOuverte} transparent animationType="fade" onRequestClose={() => setAideOuverte(false)}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>{strings['pilotage.howItWorksTitle']}</Text>
+          <Text style={styles.modalIntro}>{strings['pilotage.howItWorksIntro']}</Text>
+          <View style={[styles.modalRow, { backgroundColor: '#EFE9FB' }]}>
+            <Text style={styles.modalIcon}>🌱</Text>
+            <Text style={styles.modalLine}>{strings['pilotage.howItWorksRuleAcquired']}</Text>
+          </View>
+          <View style={[styles.modalRow, { backgroundColor: '#FFF3E6' }]}>
+            <Text style={styles.modalIcon}>🔁</Text>
+            <Text style={styles.modalLine}>{strings['pilotage.howItWorksRuleFailing']}</Text>
+          </View>
+          <View style={[styles.modalRow, { backgroundColor: '#E7F8F1' }]}>
+            <Text style={styles.modalIcon}>🎯</Text>
+            <Text style={styles.modalLine}>{strings['pilotage.howItWorksThreshold']}</Text>
+          </View>
+          <View style={[styles.modalRow, { backgroundColor: '#FFF7DE' }]}>
+            <Text style={styles.modalIcon}>🎁</Text>
+            <Text style={styles.modalLine}>{strings['pilotage.howItWorksReward']}</Text>
+          </View>
+          <View style={[styles.modalRow, { backgroundColor: '#FDE9EC' }]}>
+            <Text style={styles.modalIcon}>🎉</Text>
+            <Text style={styles.modalLine}>{strings['pilotage.howItWorksAge']}</Text>
+          </View>
+          <TouchableOpacity style={accentStyles.actionPrimary} onPress={() => setAideOuverte(false)}>
+            <Text style={accentStyles.actionPrimaryLabel}>{strings['pilotage.howItWorksClose']}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -534,11 +580,78 @@ const styles = StyleSheet.create({
     padding: 22,
     gap: 16,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  helpButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.inkMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helpButtonLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: colors.inkMuted,
+  },
   empty: {
     color: colors.inkMuted,
     fontFamily: fonts.bodyMedium,
     textAlign: 'center',
-    marginTop: 40,
+    marginTop: 24,
+  },
+  emptyExplanation: {
+    color: colors.inkMuted,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(58,46,42,0.5)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 20,
+    gap: 10,
+  },
+  modalTitle: {
+    fontFamily: fonts.cursive,
+    fontSize: 22,
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  modalIntro: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.inkMuted,
+    marginBottom: 4,
+  },
+  modalRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderRadius: 14,
+    padding: 10,
+  },
+  modalIcon: {
+    fontSize: 17,
+  },
+  modalLine: {
+    flex: 1,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.ink,
+    lineHeight: 19,
   },
   error: {
     color: colors.danger,

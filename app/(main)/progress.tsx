@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Redirect } from 'expo-router';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -16,13 +16,13 @@ function remplir(gabarit: string, slots: Record<string, unknown>): string {
   return gabarit.replace(/\{(\w+)\}/g, (_, nom: string) => String(slots[nom] ?? ''));
 }
 
-const FENETRES = [4, 8, 12] as const;
+const FENETRES = [1, 4, 8] as const;
 type Fenetre = (typeof FENETRES)[number];
 
 const LIBELLE_FENETRE: Record<Fenetre, string> = {
+  1: strings['progress.window1'],
   4: strings['progress.window4'],
   8: strings['progress.window8'],
-  12: strings['progress.window12'],
 };
 
 export default function Progress() {
@@ -32,6 +32,7 @@ export default function Progress() {
   const [vue, setVue] = useState<ProgressView | null>(null);
   const [error, setError] = useState(false);
   const [seuilActuel, setSeuilActuel] = useState<number | null>(null);
+  const chartScrollRef = useRef<ScrollView>(null);
 
   const householdId = onboarding.status === 'ready' ? onboarding.householdId : null;
   const { activeChildId, activeAccent } = useActiveChild();
@@ -136,7 +137,13 @@ export default function Progress() {
                   <Text style={styles.yAxisLabel}>{Math.round(maxPoints / 2)}</Text>
                   <Text style={styles.yAxisLabel}>0</Text>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chartScroll}>
+                <ScrollView
+                  ref={chartScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.chartScroll}
+                  onContentSizeChange={() => chartScrollRef.current?.scrollToEnd({ animated: false })}
+                >
                   <View style={styles.pointsChartWrap}>
                     {seuilActuel !== null && seuilActuel > 0 && (
                       <View style={[styles.thresholdLine, { bottom: `${(seuilActuel / maxPoints) * 100}%` }]}>
@@ -238,8 +245,8 @@ function makeAccentStyles(accent: string) {
       fontFamily: fonts.bodyBold,
     },
     pointsBar: {
-      width: 6,
-      borderRadius: 3,
+      width: 10,
+      borderRadius: 4,
       backgroundColor: accent,
     },
     ruleRatePercent: {
@@ -300,7 +307,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   yAxis: {
-    height: 100,
+    height: 140,
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
@@ -338,8 +345,8 @@ const styles = StyleSheet.create({
   pointsChart: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 3,
-    height: 100,
+    gap: 5,
+    height: 140,
   },
   pointsBarVide: {
     backgroundColor: colors.border,

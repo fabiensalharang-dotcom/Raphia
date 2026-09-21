@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ChildSwitcher from '../../components/ChildSwitcher';
@@ -17,10 +17,10 @@ import {
 import { estDernierJourDeLaSemaine, estJourModifiable, peutModifierJourCloture } from '../../core/scoring';
 import type { EtatRegle } from '../../core/scoring/types';
 import {
-  cloturerJournee,
   fetchDayEntry,
   getOrCreateDayEntry,
   mettreAJourCochage,
+  validerJournee,
   type DayEntryView,
   type RuleCheckView,
 } from '../../data/repositories/dayEntryRepository';
@@ -38,7 +38,7 @@ import { supabase } from '../../data/supabaseClient';
 import {
   demanderAutorisationSiPremierRituel,
   programmerNotificationAnniversaire,
-  programmerNotificationBilan,
+  programmerNotificationBilanMatin,
   programmerNotificationBilanHebdomadaire,
   programmerRappelRituelQuotidien,
 } from '../../data/notifications';
@@ -91,8 +91,8 @@ export default function Today() {
   const [error, setError] = useState<string | null>(null);
   const [pendingRewards, setPendingRewards] = useState<PendingRewardGrant[]>([]);
   const [childFirstName, setChildFirstName] = useState<string>('');
-  const [clotureEnCours, setClotureEnCours] = useState(false);
-  const [clotureErreur, setClotureErreur] = useState(false);
+  const [validationEnCours, setValidationEnCours] = useState(false);
+  const [validationErreur, setValidationErreur] = useState(false);
   const [changementId, setChangementId] = useState<string | null>(null);
   const [optionsChangement, setOptionsChangement] = useState<RewardInstanceOption[]>([]);
   const [afficherConfetti, setAfficherConfetti] = useState(false);
@@ -249,24 +249,15 @@ export default function Today() {
 
   const aujourdHui = timezone ? dateDuJourDansFuseau(timezone) : null;
   const peutAllerAuJourSuivant = selectedDate !== null && aujourdHui !== null && selectedDate < aujourdHui;
-  const modifiableAvantCloture =
-    dayView !== null &&
-    !dayView.isClosed &&
-    timezone !== null &&
-    estJourModifiable(dayView.date, new Date(), timezone);
-  // Une journée clôturée reste modifiable jusqu'à minuit (même jour civil,
-  // fuseau du foyer) : l'enfant garde la main sur son choix, sans réouvrir
-  // l'historique au-delà.
-  const modifiableApresCloture =
-    dayView !== null &&
-    dayView.isClosed &&
-    timezone !== null &&
-    peutModifierJourCloture(dayView.date, new Date(), timezone);
-  const modifiable = modifiableAvantCloture || modifiableApresCloture;
+  // §5.5 (nouvelle direction) : plus de clôture manuelle qui change la
+  // fenêtre de modification — une seule règle, qu'on ait validé ou non :
+  // aujourd'hui, ou la veille jusqu'à midi (estJourModifiable).
+  const modifiable = dayView !== null && timezone !== null && estJourModifiable(dayView.date, new Date(), timezone);
 
-  async function regenererBilanSiJourDejaCloture(vue: DayEntryView) {
-    // Une case cochée/décochée après clôture (jusqu'à minuit) change le
-    // score : le bilan déjà généré ce soir ne doit pas rester désaligné.
+  async function regenererBilanSiDejaValide(vue: DayEntryView) {
+    // Une case cochée/décochée après une validation (jusqu'à midi le
+    // lendemain) change le score : le bilan déjà produit ne doit pas rester
+    // désaligné.
     if (!vue.isClosed || !childId || !timezone) return;
     try {
       await regenererBilanDuJourSiModifie(childId, vue.dayEntryId, timezone);
@@ -281,7 +272,7 @@ export default function Today() {
     const nouvelEtat = suivantEtat(etatActuel);
     const nouvelleVue = await mettreAJourCochage(dayView, ruleInstanceId, nouvelEtat);
     setDayView(nouvelleVue);
-    regenererBilanSiJourDejaCloture(nouvelleVue);
+    regenererBilanSiDejaValide(nouvelleVue);
   }
 
   async function basculerNonApplicable(ruleInstanceId: string, etatActuel: EtatRegle) {
@@ -289,51 +280,40 @@ export default function Today() {
     const nouvelEtat: EtatRegle = etatActuel === 'not_applicable' ? 'not_respected' : 'not_applicable';
     const nouvelleVue = await mettreAJourCochage(dayView, ruleInstanceId, nouvelEtat);
     setDayView(nouvelleVue);
-    regenererBilanSiJourDejaCloture(nouvelleVue);
+    regenererBilanSiDejaValide(nouvelleVue);
   }
 
-  function confirmerCloture() {
-    if (!dayView || !modifiableAvantCloture) return;
-    const nonCochees = dayView.checks.filter((c) => c.etat === 'not_respected').length;
-    const cle =
-      nonCochees === 0 ? 'today.closeConfirmBody.zero' : nonCochees === 1 ? 'today.closeConfirmBody.one' : 'today.closeConfirmBody.other';
-    const message = strings[cle].replace('{count}', String(nonCochees));
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(message)) cloturer();
-      return;
-    }
-    Alert.alert(strings['today.closeConfirmTitle'], message, [
-      { text: strings['today.closeConfirmCancel'], style: 'cancel' },
-      { text: strings['today.closeConfirmConfirm'], onPress: cloturer },
-    ]);
-  }
-
-  async function cloturer() {
-    if (!dayView || !modifiableAvantCloture) return;
-    setClotureEnCours(true);
-    setClotureErreur(false);
+  // §5.5, §7.10, §8.7 (nouvelle direction) : il n'y a plus de bouton qui
+  // fige la journée — elle cesse d'être modifiable toute seule (voir
+  // `modifiable` ci-dessus). Valider sert uniquement à distinguer un jour
+  // réellement passé en revue par le parent (même à 0 point) d'un jour
+  // jamais ouvert : sans ce geste, aucun bilan n'est produit et aucune
+  // notification n'est envoyée (silence total, garde-fou #16 étendu).
+  // Rejouable autant de fois que voulu tant que `modifiable` reste vrai.
+  async function valider() {
+    if (!dayView || !modifiable) return;
+    setValidationEnCours(true);
+    setValidationErreur(false);
     let nouvelleVue: DayEntryView;
     try {
-      nouvelleVue = await cloturerJournee(dayView);
+      nouvelleVue = await validerJournee(dayView);
     } catch {
-      setClotureEnCours(false);
-      setClotureErreur(true);
+      setValidationEnCours(false);
+      setValidationErreur(true);
       return;
     }
     setDayView(nouvelleVue);
-    if (householdId) enregistrerEvenement(householdId, 'day_closed', { thresholdMet: nouvelleVue.thresholdMet });
+    if (householdId) enregistrerEvenement(householdId, 'day_validated', { thresholdMet: nouvelleVue.thresholdMet });
 
     // §6.2 : corrige le statut d'une règle en contrôle ponctuel avant
     // d'évaluer les déclencheurs, pour ne pas suggérer sur une base fausse.
-    // §7.10 : le bilan est généré à la clôture, jamais avant.
     if (childId && timezone) {
       try {
         await verifierControlesPonctuels(nouvelleVue.dayEntryId);
         await evaluerEtCreerSuggestion(childId, timezone);
         await genererBilanDuJour(childId, nouvelleVue.dayEntryId, timezone);
         await demanderAutorisationSiPremierRituel(childId);
-        if (digestTime) await programmerNotificationBilan(digestTime);
+        await programmerNotificationBilanMatin(nouvelleVue.childId, nouvelleVue.date);
         if (digestTime) await programmerRappelRituelQuotidien(digestTime);
 
         if (weekStartDay !== null && estDernierJourDeLaSemaine(nouvelleVue.date, weekStartDay)) {
@@ -345,14 +325,21 @@ export default function Today() {
         }
       } catch {
         // Le pilotage et le bilan sont une couche secondaire : une erreur
-        // ici ne doit jamais bloquer la clôture, déjà actée localement et
-        // côté serveur.
+        // ici ne doit jamais bloquer la validation, déjà actée localement
+        // et côté serveur.
       }
     }
 
-    // §7.2 : la séquence enfant se joue en Mode Affichage, déclenchée par
-    // la clôture de la journée.
-    setClotureEnCours(false);
+    setValidationEnCours(false);
+  }
+
+  // §7.2, §8.5 (nouvelle direction) : le Mode Affichage n'est plus déclenché
+  // par la clôture — un bouton dédié le lance à tout moment, pour permettre
+  // de projeter avant, pendant ou après le cochage. La route reste un
+  // instantané en lecture seule (aucune dépendance à l'état de navigation,
+  // garde-fou #9) : revenir cocher puis relancer le mode Affichage rafraîchit
+  // l'instantané.
+  function lancerModeAffichage() {
     if (childId) router.push(`/display/${childId}`);
   }
 
@@ -469,33 +456,44 @@ export default function Today() {
             ))}
           </View>
 
-          {dayView.isClosed ? (
+          {!modifiable ? (
+            <Text style={styles.closed}>
+              {dayView.isClosed ? strings['today.dayClosed'] : strings['today.dayFrozen']}
+            </Text>
+          ) : (
             <View style={styles.ctaWrap}>
-              <Text style={styles.closed}>{strings['today.dayClosed']}</Text>
-              {modifiableApresCloture && (
+              {validationErreur ? <Text style={styles.error}>{strings['today.validateError']}</Text> : null}
+              <TouchableOpacity
+                style={[accentStyles.ctaButton, validationEnCours && styles.ctaButtonDisabled]}
+                onPress={valider}
+                disabled={validationEnCours}
+              >
+                {!validationEnCours && <Ionicons name="checkmark" size={17} color="#fff" />}
+                <Text style={styles.ctaLabel}>
+                  {validationEnCours
+                    ? strings['today.validatingInProgress']
+                    : dayView.isClosed
+                      ? strings['today.revalidate']
+                      : strings['today.validate']}
+                </Text>
+              </TouchableOpacity>
+              <Text style={styles.ctaSubtitle}>
+                {dayView.isClosed ? strings['today.validatedSubtitle'] : strings['today.validateSubtitle']}
+              </Text>
+              {dayView.isClosed && (
                 <View style={styles.editableNoteRow}>
                   <Ionicons name="lock-open-outline" size={13} color={colors.inkMuted} />
-                  <Text style={styles.editableNote}>{strings['today.editableUntilMidnight']}</Text>
+                  <Text style={styles.editableNote}>{strings['today.editableUntilNoon']}</Text>
                 </View>
               )}
             </View>
-          ) : !modifiableAvantCloture ? (
-            <Text style={styles.closed}>{strings['today.dayFrozen']}</Text>
-          ) : (
-            <View style={styles.ctaWrap}>
-              {clotureErreur ? <Text style={styles.error}>{strings['today.closeError']}</Text> : null}
-              <TouchableOpacity
-                style={[accentStyles.ctaButton, clotureEnCours && styles.ctaButtonDisabled]}
-                onPress={confirmerCloture}
-                disabled={clotureEnCours}
-              >
-                {!clotureEnCours && <Ionicons name="play" size={17} color="#fff" />}
-                <Text style={styles.ctaLabel}>
-                  {clotureEnCours ? strings['today.closingInProgress'] : strings['today.startRitual']}
-                </Text>
-              </TouchableOpacity>
-              <Text style={styles.ctaSubtitle}>{strings['today.startRitualSubtitle']}</Text>
-            </View>
+          )}
+
+          {selectedDate === aujourdHui && (
+            <TouchableOpacity style={accentStyles.displayButton} onPress={lancerModeAffichage}>
+              <Ionicons name="tv-outline" size={17} color={activeAccent.accent} />
+              <Text style={accentStyles.displayButtonLabel}>{strings['today.launchDisplay']}</Text>
+            </TouchableOpacity>
           )}
         </>
       )}
@@ -556,9 +554,13 @@ export default function Today() {
             <View style={[styles.modalRow, { backgroundColor: '#FFF7DE' }]}>
               <Text style={styles.modalIcon}>⭐</Text>
               <Text style={styles.modalLine}>
-                {remplir(strings[defiCheck.thematicBlocking ? 'today.howItWorksDefiBlocking' : 'today.howItWorksDefi'], {
-                  points: defiCheck.bonusValue,
-                })}
+                {strings['today.howItWorksDefiPrefix']}{' '}
+                <Text style={styles.modalLineBold}>
+                  {remplir(strings['today.howItWorksDefiBold'], { points: defiCheck.bonusValue })}
+                </Text>{' '}
+                {defiCheck.thematicBlocking
+                  ? strings['today.howItWorksDefiBlockingSuffix']
+                  : strings['today.howItWorksDefiSuffix']}
               </Text>
             </View>
           )}
@@ -566,7 +568,11 @@ export default function Today() {
             <View style={[styles.modalRow, { backgroundColor: '#EFE9FB' }]}>
               <Text style={styles.modalIcon}>🎯</Text>
               <Text style={styles.modalLine}>
-                {remplir(strings['today.howItWorksThreshold'], { seuil: dayView.thresholdApplied })}
+                {strings['today.howItWorksThresholdPrefix']}{' '}
+                <Text style={styles.modalLineBold}>
+                  {remplir(strings['today.howItWorksThresholdBold'], { seuil: dayView.thresholdApplied })}
+                </Text>{' '}
+                {strings['today.howItWorksThresholdSuffix']}
               </Text>
             </View>
           )}
@@ -574,7 +580,11 @@ export default function Today() {
             <View style={[styles.modalRow, { backgroundColor: '#E7F8F1' }]}>
               <Text style={styles.modalIcon}>📅</Text>
               <Text style={styles.modalLine}>
-                {remplir(strings['today.howItWorksWeekly'], { jours: seuilHebdoAide })}
+                {strings['today.howItWorksWeeklyPrefix']}{' '}
+                <Text style={styles.modalLineBold}>
+                  {remplir(strings['today.howItWorksWeeklyBold'], { jours: seuilHebdoAide })}
+                </Text>{' '}
+                {strings['today.howItWorksWeeklySuffix']}
               </Text>
             </View>
           )}
@@ -652,7 +662,7 @@ function makeAccentStyles(accent: string, safeAreaTop: number) {
       fontFamily: fonts.bodyExtraBold,
       fontSize: 46,
       color: accent,
-      lineHeight: 48,
+      lineHeight: 58,
     },
     gaugeFill: {
       height: '100%',
@@ -684,6 +694,23 @@ function makeAccentStyles(accent: string, safeAreaTop: number) {
       paddingVertical: 12,
       alignItems: 'center',
       marginTop: 16,
+    },
+    displayButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderWidth: 1.5,
+      borderColor: accent,
+      borderRadius: 100,
+      paddingVertical: 12,
+      marginTop: 14,
+      marginHorizontal: 22,
+    },
+    displayButtonLabel: {
+      color: accent,
+      fontFamily: fonts.bodyBold,
+      fontSize: 14,
     },
   });
 }
@@ -740,7 +767,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 22,
     backgroundColor: colors.surface,
     borderRadius: 22,
-    padding: 18,
+    paddingTop: 26,
+    paddingBottom: 14,
+    paddingHorizontal: 18,
     shadowColor: colors.ink,
     shadowOpacity: 0.08,
     shadowRadius: 10,
@@ -862,13 +891,12 @@ const styles = StyleSheet.create({
   },
   tileFiligrane: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 4,
-    textAlign: 'center',
+    right: 10,
+    bottom: 2,
+    textAlign: 'right',
     fontFamily: fonts.bodyExtraBold,
-    fontSize: 32,
-    lineHeight: 34,
+    fontSize: 26,
+    lineHeight: 28,
   },
   tileCheck: {
     position: 'absolute',

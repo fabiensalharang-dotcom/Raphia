@@ -2,6 +2,9 @@ export const parametres = {
   'parametres.title': 'Réglages',
   'parametres.openParametres': 'Réglages',
 
+  'parametres.accountTitle': 'Ton compte',
+  'parametres.accountConnectedAs': 'Connecté avec {email}',
+
   'parametres.colorTitle': 'La couleur de',
   'parametres.colorBody': 'Change la couleur de son tableau à tout moment.',
 

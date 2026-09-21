@@ -36,7 +36,7 @@ function dateDuJourDansFuseau(timezone: string, decalageJours = 0): string {
 export async function fetchProgressView(
   childId: string,
   timezone: string,
-  weeks: 4 | 8 | 12
+  weeks: 1 | 4 | 8
 ): Promise<ProgressView> {
   const nombreJours = weeks * 7;
   const aujourdHui = dateDuJourDansFuseau(timezone);

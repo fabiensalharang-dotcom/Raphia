@@ -2,6 +2,7 @@ import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { strings } from '../i18n/fr-FR';
+import { fonts } from '../theme/typography';
 
 export type CarteBilanPartageProps = {
   childFirstName: string;
@@ -9,6 +10,7 @@ export type CarteBilanPartageProps = {
   score: number;
   thresholdApplied: number;
   streakDays: number | null;
+  accent: string;
 };
 
 // §7.12 : la carte partagée ne montre jamais que le score, la jauge et la
@@ -17,13 +19,13 @@ export type CarteBilanPartageProps = {
 // collapsable={false} est nécessaire pour que react-native-view-shot
 // puisse capturer la vue sur Android.
 const CarteBilanPartage = forwardRef<View, CarteBilanPartageProps>(function CarteBilanPartage(
-  { childFirstName, nomMasque, score, thresholdApplied, streakDays },
+  { childFirstName, nomMasque, score, thresholdApplied, streakDays, accent },
   ref
 ) {
   const proportion = thresholdApplied > 0 ? Math.min(1, score / thresholdApplied) : 0;
 
   return (
-    <View ref={ref} collapsable={false} style={styles.card}>
+    <View ref={ref} collapsable={false} style={[styles.card, { backgroundColor: accent }]}>
       <Text style={styles.brand}>{strings['app.name']}</Text>
 
       {!nomMasque && <Text style={styles.childName}>{childFirstName}</Text>}
@@ -34,7 +36,7 @@ const CarteBilanPartage = forwardRef<View, CarteBilanPartageProps>(function Cart
         <View style={[styles.gaugeFill, { width: `${proportion * 100}%` }]} />
       </View>
 
-      {streakDays !== null && (
+      {streakDays !== null && streakDays > 0 && (
         <View style={styles.streakBadge}>
           <Text style={styles.streakText}>🔥 {streakDays}</Text>
         </View>
@@ -49,52 +51,51 @@ const styles = StyleSheet.create({
   card: {
     width: 320,
     height: 480,
-    backgroundColor: '#111827',
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 32,
+    padding: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 24,
+    gap: 22,
   },
   brand: {
     position: 'absolute',
-    top: 24,
-    color: '#6B7280',
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    top: 26,
+    color: 'rgba(255,255,255,0.85)',
+    fontFamily: fonts.cursive,
+    fontSize: 20,
   },
   childName: {
-    color: '#E5E7EB',
-    fontSize: 24,
-    fontWeight: '600',
+    color: '#fff',
+    fontFamily: fonts.bodyBold,
+    fontSize: 22,
   },
   score: {
-    color: '#FFFFFF',
-    fontSize: 120,
-    fontWeight: '800',
+    color: '#fff',
+    fontFamily: fonts.bodyExtraBold,
+    fontSize: 110,
+    lineHeight: 122,
   },
   gaugeTrack: {
-    width: '80%',
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#1F2937',
+    width: '78%',
+    height: 18,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.25)',
     overflow: 'hidden',
   },
   gaugeFill: {
     height: '100%',
-    backgroundColor: '#4ADE80',
+    borderRadius: 100,
+    backgroundColor: '#fff',
   },
   streakBadge: {
-    backgroundColor: '#1F2937',
-    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 100,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
   streakText: {
-    color: '#FBBF24',
-    fontSize: 20,
-    fontWeight: '700',
+    color: '#fff',
+    fontFamily: fonts.bodyBold,
+    fontSize: 18,
   },
 });

@@ -99,19 +99,18 @@ La V1 doit être **utilisable en vrai par une famille dès la première semaine*
 ```
 Parent ouvre l'app
   → Écran du jour, enfant sélectionné par défaut
-  → Coche/décoche chaque règle (1 tap par règle)
+  → Lance le mode Affichage à tout moment (avant, pendant ou après le cochage — bouton dédié, indépendant)
+  → Partage d'écran vers la TV
+  → Coche/décoche chaque règle depuis le téléphone (1 tap par règle)
   → Renseigne la règle thématique (respectée ou non)
   → Score calculé en direct
-  → Bascule en mode Affichage
-  → Partage d'écran vers la TV
-  → L'enfant voit son score, l'atteinte du seuil, la jauge de la semaine
-  → Parent clôture la journée
-  → SÉQUENCE ENFANT (20 s) : score révélé, jauge, série, semaine
+  → SÉQUENCE ENFANT (20 s) rejouée à chaque relance du mode Affichage : score révélé, jauge, série, semaine
   → Si seuil atteint : l'enfant choisit sa récompense parmi celles disponibles
-  → Plus tard, après le coucher : notification du bilan parent
+  → Parent valide la journée depuis l'écran du jour (rejouable en cas de correction)
+  → Le lendemain matin, si la journée a été validée : notification du bilan parent
 ```
 
-**Objectif de performance : moins de 90 secondes du lancement à la clôture, pour un enfant.**
+**Objectif de performance : moins de 90 secondes du lancement à la validation, pour un enfant.**
 
 ### 3.3 Parcours d'installation
 
@@ -281,7 +280,7 @@ days_threshold_met = nombre de jours de la semaine où threshold_met = true
 weekly_threshold_met = days_threshold_met >= weekly_threshold  (défaut : 5)
 ```
 
-La récompense hebdomadaire se déclenche à la clôture du dernier jour de la semaine.
+La récompense hebdomadaire se déclenche à la validation du dernier jour de la semaine.
 
 ### 5.4 Calibrage initial du seuil
 
@@ -296,7 +295,9 @@ Avec 4 règles à 1 point et un bonus de 2, on obtient un maximum de 6 et un seu
 
 ### 5.5 Journée et fuseau
 
-Une journée démarre à 00h00 dans le `timezone` du foyer. Une journée non clôturée reste modifiable **jusqu'à 12h00 le lendemain**, puis elle se fige. Cela couvre le parent qui oublie de cocher le soir sans permettre de réécrire la semaine.
+Une journée démarre à 00h00 dans le `timezone` du foyer. **Il n'y a pas de clôture manuelle.** La journée reste modifiable **jusqu'à 12h00 le lendemain**, puis elle se fige d'elle-même. Cela couvre le parent qui oublie de cocher le soir, sans permettre de réécrire la semaine.
+
+Un bouton **Valider** permet au parent de marquer explicitement qu'il a passé la journée en revue — même si le score est de 0 point. Sans ce geste, une journée reste indiscernable d'une journée jamais ouverte : `validated_at` (sur `day_entry`) porte cette distinction. Valider est rejouable autant de fois que voulu tant que la journée est encore modifiable (par exemple après une correction) ; ce n'est jamais une action définitive en soi — seule la fenêtre de modification l'est.
 
 ---
 
@@ -306,7 +307,7 @@ C'est la fonction qui différencie le produit. Il **suggère**, il ne décide ja
 
 ### 6.1 Principe général
 
-Une passe quotidienne, à la clôture de la journée, évalue les déclencheurs ci-dessous et crée au maximum **une suggestion par enfant et par semaine**. Au-delà, l'outil devient harcelant.
+Une passe quotidienne, à la validation de la journée (§5.5), évalue les déclencheurs ci-dessous et crée au maximum **une suggestion par enfant et par semaine**. Au-delà, l'outil devient harcelant.
 
 ### 6.2 Règle acquise
 
@@ -395,7 +396,7 @@ Le parent et l'enfant n'ont pas besoin de la même chose. Les confondre produira
 
 | | **Séquence enfant** | **Note parent** |
 |---|---|---|
-| **Quand** | À la clôture de la journée, immédiatement | Le soir, après le coucher (défaut 21h00) |
+| **Quand** | Au lancement du mode Affichage, à tout moment | Le lendemain matin, si la journée a été validée (8h/10h) |
 | **Où** | Mode Affichage, sur l'écran partagé | Notification + écran dédié dans l'app |
 | **Forme** | Visuelle, animée, sans texte long | Texte court, structuré en 3 blocs |
 | **Durée** | ≤ 20 secondes | ≤ 15 secondes de lecture |
@@ -405,7 +406,7 @@ Le parent et l'enfant n'ont pas besoin de la même chose. Les confondre produira
 
 ### 7.2 La séquence enfant
 
-Déclenchée par le bouton « Clôturer la journée », jouée en mode Affichage, **interrompable à tout moment par une tape**.
+Déclenchée par le bouton dédié « Lancer le mode Affichage », disponible à tout moment sur l'écran du jour — indépendamment du cochage ou de la validation. Rejouée à chaque lancement, jouée en mode Affichage, **interrompable à tout moment par une tape**.
 
 | # | Étape | Durée | Contenu |
 |---|---|---|---|
@@ -506,7 +507,7 @@ Chaque type d'observation dispose d'**au moins 5 variantes de formulation**, et 
 
 ### 7.8 Bilan hebdomadaire
 
-Déclenché à la clôture du dernier jour de la semaine, notification distincte, contenu plus riche. C'est lui qui porte la substance, ce qui permet de garder le bilan quotidien très court.
+Déclenché à la validation du dernier jour de la semaine, notification distincte, contenu plus riche. C'est lui qui porte la substance, ce qui permet de garder le bilan quotidien très court.
 
 Contenu :
 - Points de la semaine et nombre de seuils atteints
@@ -543,9 +544,10 @@ Le bilan hebdomadaire est le **seul endroit** où une comparaison avec la semain
 
 ### 7.10 Déclenchement et notification
 
-- Le bilan est **généré à la clôture** de la journée
-- La notification part à `household.digest_time`, **défaut 21h00** dans le fuseau du foyer, réglable
-- **Si la journée n'est pas clôturée à l'heure du bilan, aucun bilan et aucune relance.** Le produit ne harcèle pas un parent qui a eu une soirée compliquée
+- Le bilan est **généré à la validation** de la journée (§5.5) — jamais avant, et jamais pour une journée jamais validée
+- **Une journée jamais validée par le parent ne produit aucun bilan et aucune notification.** Le produit ne harcèle pas un parent qui a eu une soirée compliquée, et ne bilan pas un silence
+- La notification du bilan part **le lendemain matin de la journée validée** — 8h00 en semaine, 10h00 le week-end (heure de l'appareil) — plutôt que le soir même : elle a pu être validée tard, ou complétée le lendemain matin dans la fenêtre de grâce (§5.5)
+- Un second rappel, indépendant et inconditionnel (garde-fou #16), invite chaque soir à faire le rituel — à `household.digest_time`, **défaut 19h00** dans le fuseau du foyer, réglable. Il ne dit jamais si le rituel a été fait ou non
 - Les notifications sont désactivables sans casser la génération : le bilan reste consultable dans l'app
 
 ### 7.11 Aucune IA générative en V1 — décision D11
@@ -648,7 +650,7 @@ Deux canaux strictement séparés, avec une frontière qui ne se franchit jamais
 
 #### Notifications — locales uniquement
 
-Les bilans (§7) sont produits **sur l'appareil**, par gabarits déterministes, sans réseau. La notification est donc **programmée localement** à la clôture de la journée, pour `household.digest_time`.
+Les bilans (§7) sont produits **sur l'appareil**, par gabarits déterministes, sans réseau. La notification du bilan quotidien est donc **programmée localement**, calculée à la validation de la journée (§5.5) pour le lendemain matin.
 
 Conséquences :
 - **Aucune infrastructure push à monter** — ni FCM, ni APNs côté serveur
@@ -657,8 +659,9 @@ Conséquences :
 
 | Notification | Déclenchement | Programmation |
 |---|---|---|
-| Bilan du soir | Clôture de la journée | Locale, à `digest_time` |
-| Bilan hebdomadaire | Clôture du dernier jour de la semaine | Locale |
+| Rappel du rituel du soir | Quotidien, inconditionnel | Locale, à `household.digest_time` (défaut 19h00) |
+| Bilan du jour | Validation de la journée (§5.5) | Locale, le lendemain matin : 8h00 en semaine, 10h00 le week-end |
+| Bilan hebdomadaire | Validation du dernier jour de la semaine | Locale, à `household.digest_time` |
 | Anniversaire de l'enfant (§6.6) | Date d'anniversaire | Locale, programmée à l'avance |
 
 **Règles de contenu — l'écran verrouillé est public.** Le libellé d'une notification est visible par n'importe qui passant à côté du téléphone.
@@ -670,7 +673,7 @@ Aucun prénom, aucun score, aucun nom de règle, aucune appréciation dans le li
 
 **Moment de la demande d'autorisation.** Ne **jamais** demander l'autorisation de notification à l'installation — le taux de refus est massif et irréversible. La demander **après le premier rituel du soir complet**, une fois la valeur démontrée.
 
-**Cas limite :** si le parent clôture sa journée après `digest_time`, aucune notification n'est programmée. Il est déjà dans l'application, le bilan y est simplement disponible.
+**Cas limite :** si la validation a lieu après l'heure de la notification du lendemain (rattrapage tardif dans la fenêtre de grâce), aucune notification n'est programmée. Le parent est déjà dans l'application, le bilan y est simplement disponible.
 
 #### Email transactionnel — Brevo (SMTP)
 
@@ -705,8 +708,8 @@ C'est l'écran qui décide de l'adoption. Il est utilisé tous les soirs, en 90 
 4. **Liste des règles actives** — une ligne par règle, une seule tape pour basculer
 5. **Règle thématique**, visuellement distincte — respectée, elle vaut le bonus ; non tenue, elle ne vaut rien. Son état non tenu s'affiche en neutre, **jamais en rouge**
 6. Jauge de progression vers le seuil
-7. Bouton **« Passer en affichage »**
-8. Bouton **« Clôturer la journée »**
+7. Bouton **« Lancer le mode Affichage »** — disponible à tout moment, indépendamment du cochage
+8. Bouton **« Valider la journée »** — rejouable, ne fige rien par lui-même (§5.5)
 
 **Exigences :**
 - Une règle se coche en **une seule tape**. Pas de menu, pas de confirmation.
@@ -848,7 +851,7 @@ Chaque acceptation crée un `consent_record` **versionné**. Si la politique cha
 13. **Ne jamais appeler un modèle de langage** pour produire un bilan (D11).
 14. **Ne jamais produire deux soirs de suite une observation négative** — les filtres du §7.5 sont obligatoires, pas indicatifs.
 15. **Ne jamais consoler l'enfant** quand le seuil n'est pas atteint. La séquence s'arrête, elle ne commente pas.
-16. **Ne jamais relancer un parent** qui n'a pas clôturé sa journée.
+16. **Ne jamais relancer un parent** ni produire de bilan pour une journée qu'il n'a pas validée.
 17. **Ne jamais stocker le texte rendu d'un bilan** — clé, variante et valeurs uniquement.
 18. **Ne jamais faire transiter une donnée de comportement par un email ou un service d'envoi** (§8.7).
 19. **Ne jamais mettre de prénom, de score ou de nom de règle dans le libellé d'une notification** — l'écran verrouillé est public.

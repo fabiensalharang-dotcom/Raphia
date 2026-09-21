@@ -1,8 +1,8 @@
 export const progress = {
   'progress.title': 'Progression',
+  'progress.window1': 'Semaine',
   'progress.window4': '4 semaines',
   'progress.window8': '8 semaines',
-  'progress.window12': '12 semaines',
   'progress.pointsTitle': 'Points quotidiens',
   'progress.pointsEmpty': "Pas encore de journée enregistrée sur cette période.",
   'progress.ruleRatesTitle': 'Taux de réussite par habitude',

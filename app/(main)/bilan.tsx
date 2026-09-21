@@ -188,6 +188,7 @@ export default function Bilan() {
                 score={digest.pointsTotal}
                 thresholdApplied={digest.thresholdApplied}
                 streakDays={streakDays}
+                accent={activeAccent.accent}
               />
               <TouchableOpacity style={accentStyles.shareToggle} onPress={() => setNomMasque((v) => !v)}>
                 <Text style={accentStyles.shareToggleText}>

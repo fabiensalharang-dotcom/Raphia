@@ -9,7 +9,7 @@ export type TelemetryEventType =
   | 'reward_chosen'
   | 'digest_opened'
   | 'card_shared'
-  | 'day_closed';
+  | 'day_validated';
 
 // §10.2 : jamais d'identifiant d'enfant ni de prénom dans la charge utile,
 // identifiant de foyer pseudonymisé côté base (household_pseudonym), âge

@@ -36,18 +36,26 @@ export async function demanderAutorisationSiPremierRituel(childId: string): Prom
   await Notifications.requestPermissionsAsync();
 }
 
-// §8.7, cas limite : si digest_time est déjà passé, aucune notification —
-// le parent est déjà dans l'application, le bilan y est disponible.
-export async function programmerNotificationBilan(digestTime: string): Promise<void> {
+// §7.10, §8.7 (nouvelle direction) : le bilan n'est plus annoncé le soir à
+// une clôture manuelle — il est annoncé le lendemain matin de la journée
+// validée, 8h en semaine et 10h le week-end (heure de l'appareil, comme les
+// autres notifications locales de ce fichier). dateEntree est la date du
+// day_entry validé (« hier » du point de vue de la notification). Un
+// identifiant stable par enfant évite d'empiler plusieurs rappels si le
+// parent valide plusieurs fois la même soirée.
+export async function programmerNotificationBilanMatin(childId: string, dateEntree: string): Promise<void> {
   const permission = await Notifications.getPermissionsAsync();
   if (permission.status !== 'granted') return;
 
-  const [heures, minutes] = digestTime.split(':').map(Number);
-  const maintenant = new Date();
-  const cible = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate(), heures, minutes, 0, 0);
-  if (cible.getTime() <= maintenant.getTime()) return;
+  const lendemain = new Date(`${dateEntree}T00:00:00`);
+  lendemain.setDate(lendemain.getDate() + 1);
+  const weekEnd = lendemain.getDay() === 0 || lendemain.getDay() === 6;
+  const heure = weekEnd ? 10 : 8;
+  const cible = new Date(lendemain.getFullYear(), lendemain.getMonth(), lendemain.getDate(), heure, 0, 0, 0);
+  if (cible.getTime() <= Date.now()) return;
 
   await Notifications.scheduleNotificationAsync({
+    identifier: `bilan-matin-${childId}`,
     content: {
       title: strings['bilan.notification.title'],
       body: strings['bilan.notification.body'],
